@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Products - License Key Manager</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#3b82f6',
+            secondary: '#6b7280',
+            success: '#10b981',
+            warning: '#f59e0b',
+            danger: '#ef4444',
+            info: '#06b6d4'
+          }
+        }
+      }
+    }
+  </script>
+</head>
+
+<body class="bg-gray-50 min-h-screen">
+  <nav class="bg-gray-900 shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <div class="flex items-center">
+          <a href="/admin" class="text-white text-lg font-semibold">
+            License Key Manager
+          </a>
+        </div>
+
+        <div class="relative">
+          <div class="relative inline-block text-left">
+            <button onclick="toggleDropdown()"
+              class="flex items-center text-white hover:text-gray-300 focus:outline-none focus:text-gray-300">
+              <span class="mr-2">Admin</span>
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+              </svg>
+            </button>
+
+            <div id="dropdown" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
+              <a href="/admin" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Dashboard</a>
+              <a href="/admin/products"
+                class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 bg-gray-50">Products</a>
+              <a href="/admin/customers" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Customers</a>
+              <a href="/admin/license-keys" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">License
+                Keys</a>
+              <a href="/admin/email-config" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Email Config</a>
+              <hr class="my-1">
+              <a href="/admin/logout" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Logout</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+    <div class="flex justify-between items-center mb-8">
+      <h1 class="text-3xl font-bold text-gray-900">Products</h1>
+      <a href="/admin/products/new"
+        class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+        <svg class="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+        </svg>
+        New Product
+      </a>
+    </div>
+
+    <div class="bg-white shadow rounded-lg">
+      {{if .Products}}
+      <div class="overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Name</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Description</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Version</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                License Keys</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Actions</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            {{range .Products}}
+            <tr class="hover:bg-gray-50">
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div class="flex items-center">
+                  <div class="flex-shrink-0 h-10 w-10">
+                    <div class="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                      <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                      </svg>
+                    </div>
+                  </div>
+                  <div class="ml-4">
+                    <div class="text-sm font-medium text-gray-900">{{.Name}}</div>
+                  </div>
+                </div>
+              </td>
+              <td class="px-6 py-4">
+                <div class="text-sm text-gray-900">{{.Description}}</div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {{.Version}}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {{len .LicenseKeys}} keys
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                <a href="/admin/products/{{.ID}}" class="text-blue-600 hover:text-blue-900 mr-3">View</a>
+                <a href="/admin/products/{{.ID}}/edit" class="text-yellow-600 hover:text-yellow-900 mr-3">Edit</a>
+                <button onclick="deleteProduct({{.ID}})" class="text-red-600 hover:text-red-900">Delete</button>
+              </td>
+            </tr>
+            {{end}}
+          </tbody>
+        </table>
+      </div>
+      {{else}}
+      <div class="text-center py-12">
+        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+        </svg>
+        <h3 class="mt-2 text-sm font-medium text-gray-900">No products</h3>
+        <p class="mt-1 text-sm text-gray-500">Get started by creating your first product.</p>
+        <div class="mt-6">
+          <a href="/admin/products/new"
+            class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            <svg class="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6">
+              </path>
+            </svg>
+            New Product
+          </a>
+        </div>
+      </div>
+      {{end}}
+    </div>
+  </div>
+
+  <script>
+    function toggleDropdown() {
+      const dropdown = document.getElementById('dropdown');
+      dropdown.classList.toggle('hidden');
+    }
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function (event) {
+      const dropdown = document.getElementById('dropdown');
+      const button = event.target.closest('button');
+
+      if (!button && dropdown && !dropdown.classList.contains('hidden')) {
+        dropdown.classList.add('hidden');
+      }
+    });
+
+    function deleteProduct(id) {
+      if (confirm('Are you sure you want to delete this product? This will also delete all associated license keys.')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/admin/products/${id}`;
+
+        const methodInput = document.createElement('input');
+        methodInput.type = 'hidden';
+        methodInput.name = '_method';
+        methodInput.value = 'DELETE';
+        form.appendChild(methodInput);
+
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = '_token';
+        csrfInput.value = '{{.CSRFToken}}';
+        form.appendChild(csrfInput);
+
+        document.body.appendChild(form);
+        form.submit();
+      }
+    }
+  </script>
+</body>
+
+</html>

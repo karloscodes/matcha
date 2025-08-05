@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Edit {{.Product.Name}} - License Key Manager</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#3b82f6',
+            secondary: '#6b7280',
+            success: '#10b981',
+            warning: '#f59e0b',
+            danger: '#ef4444',
+            info: '#06b6d4'
+          }
+        }
+      }
+    }
+  </script>
+</head>
+
+<body class="bg-gray-50 min-h-screen">
+  <nav class="bg-gray-900 shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <div class="flex items-center">
+          <a href="/admin" class="text-white text-lg font-semibold">
+            License Key Manager
+          </a>
+        </div>
+
+        <div class="relative">
+          <div class="relative inline-block text-left">
+            <button onclick="toggleDropdown()"
+              class="flex items-center text-white hover:text-gray-300 focus:outline-none focus:text-gray-300">
+              <span class="mr-2">Admin</span>
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+              </svg>
+            </button>
+
+            <div id="dropdown" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
+              <a href="/admin" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Dashboard</a>
+              <a href="/admin/products" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Products</a>
+              <a href="/admin/customers" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Customers</a>
+              <a href="/admin/license-keys" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">License
+                Keys</a>
+              <hr class="my-1">
+              <a href="/admin/email-config" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Settings</a>
+              <hr class="my-1">
+              <a href="/admin/logout" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Logout</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+    <div class="mb-8">
+      <nav class="flex" aria-label="Breadcrumb">
+        <ol class="flex items-center space-x-4">
+          <li>
+            <a href="/admin/products" class="text-gray-400 hover:text-gray-500">
+              <span>Products</span>
+            </a>
+          </li>
+          <li>
+            <div class="flex items-center">
+              <svg class="flex-shrink-0 h-5 w-5 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd"
+                  d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                  clip-rule="evenodd"></path>
+              </svg>
+              <a href="/admin/products/{{.Product.ID}}"
+                class="ml-4 text-gray-400 hover:text-gray-500">{{.Product.Name}}</a>
+            </div>
+          </li>
+          <li>
+            <div class="flex items-center">
+              <svg class="flex-shrink-0 h-5 w-5 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd"
+                  d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                  clip-rule="evenodd"></path>
+              </svg>
+              <span class="ml-4 text-gray-500">Edit</span>
+            </div>
+          </li>
+        </ol>
+      </nav>
+    </div>
+
+    {{if .Error}}
+    <div class="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+      <span class="block sm:inline">{{.Error}}</span>
+    </div>
+    {{end}}
+
+    <div class="bg-white shadow rounded-lg">
+      <div class="px-6 py-4 border-b border-gray-200">
+        <h1 class="text-2xl font-bold text-gray-900">Edit Product</h1>
+      </div>
+      <form method="POST" action="/admin/products/{{.Product.ID}}" class="px-6 py-6">
+        <input type="hidden" name="_method" value="PUT">
+        <input type="hidden" name="_token" value="{{.CSRFToken}}">
+        <div class="grid grid-cols-1 gap-6">
+          <div>
+            <label for="name" class="block text-sm font-medium text-gray-700">Product Name</label>
+            <input type="text" name="name" id="name" required
+              class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+              placeholder="Enter product name" value="{{.Product.Name}}">
+          </div>
+
+          <div>
+            <label for="description" class="block text-sm font-medium text-gray-700">Description</label>
+            <textarea name="description" id="description" rows="3"
+              class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+              placeholder="Enter product description">{{.Product.Description}}</textarea>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label for="version" class="block text-sm font-medium text-gray-700">Version</label>
+              <input type="text" name="version" id="version"
+                class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                placeholder="1.0.0" value="{{.Product.Version}}">
+            </div>
+
+            <div>
+              <label for="default_expiration_days" class="block text-sm font-medium text-gray-700">Default Expiration
+                (Days)</label>
+              <input type="number" name="default_expiration_days" id="default_expiration_days" min="1"
+                class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                placeholder="365" value="{{.Product.DefaultExpirationDays}}">
+            </div>
+          </div>
+
+          <div>
+            <label for="default_usage_limit" class="block text-sm font-medium text-gray-700">Default Usage Limit</label>
+            <input type="number" name="default_usage_limit" id="default_usage_limit" min="0"
+              class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+              placeholder="1" value="{{.Product.DefaultUsageLimit}}">
+            <p class="mt-2 text-sm text-gray-500">Number of times a license key can be activated (0 for unlimited)</p>
+          </div>
+        </div>
+
+        <div class="mt-6 flex items-center justify-end space-x-3">
+          <a href="/admin/products/{{.Product.ID}}"
+            class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Cancel
+          </a>
+          <button type="submit"
+            class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Update Product
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    function toggleDropdown() {
+      const dropdown = document.getElementById('dropdown');
+      dropdown.classList.toggle('hidden');
+    }
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function (event) {
+      const dropdown = document.getElementById('dropdown');
+      const button = event.target.closest('button');
+
+      if (!button && dropdown && !dropdown.classList.contains('hidden')) {
+        dropdown.classList.add('hidden');
+      }
+    });
+  </script>
+</body>
+
+</html>

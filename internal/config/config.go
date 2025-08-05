@@ -1,0 +1,113 @@
+package config
+
+import (
+	"fmt"
+	"os"
+	"strconv"
+)
+
+type Config struct {
+	Environment     string
+	Port            string
+	DatabaseURL     string
+	EmailService    string
+	FromEmail       string
+	MailgunAPIKey   string
+	MailgunDomain   string
+	SendGridAPIKey  string
+	SendGridDomain  string
+	SMTPServer      string
+	SMTPPort        string
+	SMTPUsername    string
+	SMTPPassword    string
+	SMTPAuth        string
+	SMTPTLS         string
+	SMTPDomain      string
+	SecretKey       string
+	Debug           bool
+}
+
+func New() *Config {
+	env := getEnv("GO_ENV", "development")
+	
+	cfg := &Config{
+		Environment:     env,
+		Port:            getEnv("PORT", "8080"),
+		EmailService:    getEnv("EMAIL_SERVICE", "smtp"),
+		FromEmail:       getEnv("FROM_EMAIL", getDefaultFromEmail(env)),
+		MailgunAPIKey:   getEnv("MAILGUN_API_KEY", ""),
+		MailgunDomain:   getEnv("MAILGUN_DOMAIN", ""),
+		SendGridAPIKey:  getEnv("SENDGRID_API_KEY", ""),
+		SendGridDomain:  getEnv("SENDGRID_DOMAIN", "localhost"),
+		SMTPServer:      getEnv("SMTP_SERVER", "localhost"),
+		SMTPPort:        getEnv("SMTP_PORT", "587"),
+		SMTPUsername:    getEnv("SMTP_USERNAME", ""),
+		SMTPPassword:    getEnv("SMTP_PASSWORD", ""),
+		SMTPAuth:        getEnv("SMTP_AUTH", "plain"),
+		SMTPTLS:         getEnv("SMTP_TLS", "true"),
+		SMTPDomain:      getEnv("SMTP_DOMAIN", "localhost"),
+		SecretKey:       getEnv("SECRET_KEY", getDefaultSecretKey(env)),
+		Debug:           getBoolEnv("DEBUG", env == "development"),
+	}
+
+	cfg.DatabaseURL = getEnv("DATABASE_URL", getDefaultDatabaseURL(env))
+	
+	return cfg
+}
+
+func (c *Config) IsDevelopment() bool {
+	return c.Environment == "development"
+}
+
+func (c *Config) IsProduction() bool {
+	return c.Environment == "production"
+}
+
+func (c *Config) IsTest() bool {
+	return c.Environment == "test"
+}
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
+func getBoolEnv(key string, defaultValue bool) bool {
+	if value := os.Getenv(key); value != "" {
+		if parsed, err := strconv.ParseBool(value); err == nil {
+			return parsed
+		}
+	}
+	return defaultValue
+}
+
+func getDefaultDatabaseURL(env string) string {
+	switch env {
+	case "test":
+		return "test_license_manager.db"
+	case "production":
+		return "prod_license_manager.db"
+	default:
+		return "license_manager.db"
+	}
+}
+
+func getDefaultFromEmail(env string) string {
+	switch env {
+	case "production":
+		return "noreply@yourdomain.com"
+	default:
+		return "noreply@localhost"
+	}
+}
+
+func getDefaultSecretKey(env string) string {
+	switch env {
+	case "production":
+		return "CHANGE_ME_IN_PRODUCTION_" + fmt.Sprintf("%d", os.Getpid())
+	default:
+		return "dev-secret-key-not-for-production"
+	}
+}

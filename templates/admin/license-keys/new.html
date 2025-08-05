@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>New License Key - License Key Manager</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#3b82f6',
+            secondary: '#6b7280',
+            success: '#10b981',
+            warning: '#f59e0b',
+            danger: '#ef4444',
+            info: '#06b6d4'
+          }
+        }
+      }
+    }
+  </script>
+</head>
+
+<body class="bg-gray-50 min-h-screen">
+  <nav class="bg-gray-900 shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <div class="flex items-center">
+          <a href="/admin" class="text-white text-lg font-semibold">
+            License Key Manager
+          </a>
+        </div>
+
+        <div class="relative">
+          <div class="relative inline-block text-left">
+            <button onclick="toggleDropdown()"
+              class="flex items-center text-white hover:text-gray-300 focus:outline-none focus:text-gray-300">
+              <span class="mr-2">Admin</span>
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+              </svg>
+            </button>
+
+            <div id="dropdown" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
+              <a href="/admin" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Dashboard</a>
+              <a href="/admin/products" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Products</a>
+              <a href="/admin/customers" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Customers</a>
+              <a href="/admin/license-keys"
+                class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 bg-gray-50">License Keys</a>
+              <a href="/admin/email-config" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Email Config</a>
+              <hr class="my-1">
+              <a href="/admin/logout" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Logout</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="max-w-3xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+    <!-- Breadcrumb -->
+    <nav class="flex mb-8" aria-label="Breadcrumb">
+      <ol class="inline-flex items-center space-x-1 md:space-x-3">
+        <li class="inline-flex items-center">
+          <a href="/admin" class="inline-flex items-center text-sm font-medium text-gray-700 hover:text-blue-600">
+            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path
+                d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z">
+              </path>
+            </svg>
+            Dashboard
+          </a>
+        </li>
+        <li>
+          <div class="flex items-center">
+            <svg class="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd"
+                d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                clip-rule="evenodd"></path>
+            </svg>
+            <a href="/admin/license-keys"
+              class="ml-1 text-sm font-medium text-gray-700 hover:text-blue-600 md:ml-2">License Keys</a>
+          </div>
+        </li>
+        <li aria-current="page">
+          <div class="flex items-center">
+            <svg class="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd"
+                d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                clip-rule="evenodd"></path>
+            </svg>
+            <span class="ml-1 text-sm font-medium text-gray-500 md:ml-2">New</span>
+          </div>
+        </li>
+      </ol>
+    </nav>
+
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold text-gray-900">Create New License Key</h1>
+      <p class="mt-2 text-sm text-gray-600">Generate a new license key for a customer and product.</p>
+    </div>
+
+    <div class="bg-white shadow rounded-lg">
+      <form action="/admin/license-keys" method="POST" class="p-6 space-y-6">
+                <input type="hidden" name="_token" value="{{.CSRFToken}}">
+                {{if .Error}}
+        <div class="rounded-md bg-red-50 p-4">
+          <div class="flex">
+            <div class="flex-shrink-0">
+              <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                  clip-rule="evenodd" />
+              </svg>
+            </div>
+            <div class="ml-3">
+              <h3 class="text-sm font-medium text-red-800">Error</h3>
+              <div class="mt-2 text-sm text-red-700">
+                <p>{{.Error}}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        {{end}}
+
+        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+          <div>
+            <label for="product_id" class="block text-sm font-medium text-gray-700">Product *</label>
+            <select id="product_id" name="product_id" required
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+              <option value="">Select a product...</option>
+              {{range .Products}}
+              <option value="{{.ID}}" {{if eq .ID $.ProductID}}selected{{end}}>{{.Name}} ({{.Version}})</option>
+              {{end}}
+            </select>
+          </div>
+
+          <div>
+            <label for="customer_id" class="block text-sm font-medium text-gray-700">Customer *</label>
+            <select id="customer_id" name="customer_id" required
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+              <option value="">Select a customer...</option>
+              {{range .Customers}}
+              <option value="{{.ID}}" {{if eq .ID $.CustomerID}}selected{{end}}>{{.Email}} - {{.FirstName}}
+                {{.LastName}}</option>
+              {{end}}
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label for="key" class="block text-sm font-medium text-gray-700">License Key</label>
+          <div class="mt-1 flex rounded-md shadow-sm">
+            <input type="text" name="key" id="key" value="{{.Key}}"
+              class="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-l-md border border-gray-300 focus:ring-blue-500 focus:border-blue-500 sm:text-sm font-mono"
+              placeholder="Leave empty to auto-generate">
+            <button type="button" onclick="generateKey()"
+              class="inline-flex items-center px-3 py-2 border border-l-0 border-gray-300 rounded-r-md bg-gray-50 text-gray-500 text-sm hover:bg-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+              Generate
+            </button>
+          </div>
+          <p class="mt-2 text-sm text-gray-500">If left empty, a unique license key will be automatically generated.</p>
+        </div>
+
+        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+          <div>
+            <label for="expires_at" class="block text-sm font-medium text-gray-700">Expiration Date</label>
+            <input type="date" name="expires_at" id="expires_at" value="{{.ExpiresAt}}"
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+            <p class="mt-2 text-sm text-gray-500">Leave empty for no expiration.</p>
+          </div>
+
+          <div>
+            <label for="max_activations" class="block text-sm font-medium text-gray-700">Max Activations</label>
+            <input type="number" name="max_activations" id="max_activations" value="{{.MaxActivations}}" min="0"
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+            <p class="mt-2 text-sm text-gray-500">0 means unlimited activations.</p>
+          </div>
+        </div>
+
+        <div>
+          <label for="metadata" class="block text-sm font-medium text-gray-700">Metadata (JSON)</label>
+          <textarea name="metadata" id="metadata" rows="4" placeholder='{"feature1": true, "limit": 100}'
+            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm font-mono">{{.Metadata}}</textarea>
+          <p class="mt-2 text-sm text-gray-500">Optional JSON metadata for additional license properties.</p>
+        </div>
+
+        <div class="flex items-center">
+          <input id="is_trial" name="is_trial" type="checkbox" {{if .IsTrial}}checked{{end}}
+            class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+          <label for="is_trial" class="ml-2 block text-sm text-gray-900">
+            This is a trial license
+          </label>
+        </div>
+
+        <div class="flex justify-end space-x-3">
+          <a href="/admin/license-keys"
+            class="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Cancel
+          </a>
+          <button type="submit"
+            class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Create License Key
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    function toggleDropdown() {
+      const dropdown = document.getElementById('dropdown');
+      dropdown.classList.toggle('hidden');
+    }
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function (event) {
+      const dropdown = document.getElementById('dropdown');
+      const button = event.target.closest('button');
+
+      if (!button && dropdown && !dropdown.classList.contains('hidden')) {
+        dropdown.classList.add('hidden');
+      }
+    });
+
+    function generateKey() {
+      // Generate a random license key
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      let result = '';
+      for (let i = 0; i < 25; i++) {
+        if (i > 0 && i % 5 === 0) {
+          result += '-';
+        }
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      document.getElementById('key').value = result;
+    }
+
+    // Set default expiration to 1 year from now
+    document.addEventListener('DOMContentLoaded', function () {
+      const expiresAtInput = document.getElementById('expires_at');
+      if (!expiresAtInput.value) {
+        const oneYearFromNow = new Date();
+        oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+        expiresAtInput.value = oneYearFromNow.toISOString().split('T')[0];
+      }
+    });
+  </script>
+</body>
+
+</html>
