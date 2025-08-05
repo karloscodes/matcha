@@ -2,16 +2,19 @@ package handlers
 
 import (
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
-	"github.com/gofiber/fiber/v2"
-	"gorm.io/gorm"
-	"github.com/gofiber/fiber/v2"
-	"gorm.io/gorm""""manager/internal/databasemanager/internal/services"
+
+	"license-key-manager/internal/config"
+	"license-key-manager/internal/database"
+	"license-key-manager/internal/middleware"
+	"license-key-manager/internal/models"
+	"license-key-manager/internal/services"
 )
 
 type AdminHandler struct {
@@ -55,7 +58,7 @@ func (h *AdminHandler) Login(c *fiber.Ctx) error {
 		return c.Status(500).SendString("Login failed")
 	}
 
-	return c.Redirect("/admin")
+	return c.Redirect("/admin/")
 }
 
 func (h *AdminHandler) Logout(c *fiber.Ctx) error {
@@ -65,6 +68,17 @@ func (h *AdminHandler) Logout(c *fiber.Ctx) error {
 
 // Dashboard
 func (h *AdminHandler) Dashboard(c *fiber.Ctx) error {
+	log.Printf("Dashboard: Rendering dashboard template for path: %s", c.Path())
+	// Strong cache-busting headers to prevent browser caching issues
+	c.Set("Cache-Control", "no-cache, no-store, must-revalidate, private")
+	c.Set("Pragma", "no-cache")
+	c.Set("Expires", "0")
+	c.Set("Last-Modified", time.Now().UTC().Format(time.RFC1123))
+	c.Set("ETag", fmt.Sprintf("\"%d\"", time.Now().Unix()))
+
+	// Add timestamp to URL parameters to ensure fresh request
+	timestamp := time.Now().Unix()
+
 	var stats struct {
 		TotalProducts   int64
 		TotalCustomers  int64
@@ -87,12 +101,15 @@ func (h *AdminHandler) Dashboard(c *fiber.Ctx) error {
 
 	return c.Render("admin/dashboard/index", fiber.Map{
 		"ShowNav":            true,
-		"Title":              "Dashboard",
+		"PageType":           "dashboard",
+		"Title":              "Dashboard - Live " + time.Now().Format("15:04:05"),
 		"ProductCount":       stats.TotalProducts,
 		"CustomerCount":      stats.TotalCustomers,
 		"TotalLicenseCount":  stats.TotalLicenses,
 		"ActiveLicenseCount": stats.ActiveLicenses,
 		"RecentLicenses":     recentLicenses,
+		"CacheBuster":        timestamp,
+		"CurrentTime":        time.Now().Format("2006-01-02 15:04:05"),
 	})
 }
 
@@ -103,19 +120,25 @@ func (h *AdminHandler) ProductsIndex(c *fiber.Ctx) error {
 
 	return c.Render("admin/products/index", fiber.Map{
 		"ShowNav":   true,
+		"PageType":  "products-index",
 		"Products":  products,
-		"CSRFToken": c.Locals("csrf"),
+		"CSRFToken": "",
 	})
 }
 
 func (h *AdminHandler) ProductsNew(c *fiber.Ctx) error {
 	return c.Render("admin/products/new", fiber.Map{
 		"ShowNav":   true,
-		"CSRFToken": c.Locals("csrf"),
+		"PageType":  "products-new",
+		"CSRFToken": "",
 	})
 }
 
 func (h *AdminHandler) ProductsCreate(c *fiber.Ctx) error {
+	log.Printf("ProductsCreate: Method=%s, Path=%s", c.Method(), c.Path())
+	log.Printf("ProductsCreate: Form values - name=%s, description=%s, version=%s", 
+		c.FormValue("name"), c.FormValue("description"), c.FormValue("version"))
+	
 	product := models.Product{
 		Name:        c.FormValue("name"),
 		Description: c.FormValue("description"),
@@ -159,7 +182,9 @@ func (h *AdminHandler) ProductsShow(c *fiber.Ctx) error {
 	}
 
 	return c.Render("admin/products/show", fiber.Map{
-		"Product": product,
+		"ShowNav":  true,
+		"PageType": "products-show",
+		"Product":  product,
 	})
 }
 
@@ -171,8 +196,10 @@ func (h *AdminHandler) ProductsEdit(c *fiber.Ctx) error {
 	}
 
 	return c.Render("admin/products/edit", fiber.Map{
+		"ShowNav":   true,
+		"PageType":  "products-edit",
 		"Product":   product,
-		"CSRFToken": c.Locals("csrf"),
+		"CSRFToken": "",
 	})
 }
 
@@ -207,7 +234,7 @@ func (h *AdminHandler) ProductsUpdate(c *fiber.Ctx) error {
 		return c.Render("admin/products/edit", fiber.Map{
 			"Error":     "Failed to update product: " + err.Error(),
 			"Product":   product,
-			"CSRFToken": c.Locals("csrf"),
+			"CSRFToken": "",
 		})
 	}
 
@@ -230,15 +257,17 @@ func (h *AdminHandler) CustomersIndex(c *fiber.Ctx) error {
 
 	return c.Render("admin/customers/index", fiber.Map{
 		"ShowNav":   true,
+		"PageType":  "customers-index",
 		"Customers": customers,
-		"CSRFToken": c.Locals("csrf"),
+		"CSRFToken": "",
 	})
 }
 
 func (h *AdminHandler) CustomersNew(c *fiber.Ctx) error {
 	return c.Render("admin/customers/new", fiber.Map{
 		"ShowNav":   true,
-		"CSRFToken": c.Locals("csrf"),
+		"PageType":  "customers-new",
+		"CSRFToken": "",
 	})
 }
 
@@ -287,6 +316,7 @@ func (h *AdminHandler) CustomersShow(c *fiber.Ctx) error {
 
 	return c.Render("admin/customers/show", fiber.Map{
 		"ShowNav":  true,
+		"PageType": "customers-show",
 		"Customer": customer,
 	})
 }
@@ -300,8 +330,9 @@ func (h *AdminHandler) CustomersEdit(c *fiber.Ctx) error {
 
 	return c.Render("admin/customers/edit", fiber.Map{
 		"ShowNav":   true,
+		"PageType":  "customers-edit",
 		"Customer":  customer,
-		"CSRFToken": c.Locals("csrf"),
+		"CSRFToken": "",
 	})
 }
 
@@ -343,7 +374,7 @@ func (h *AdminHandler) CustomersUpdate(c *fiber.Ctx) error {
 			"Error":     "Failed to update customer: " + err.Error(),
 			"Customer":  customer,
 			"ShowNav":   true,
-			"CSRFToken": c.Locals("csrf"),
+			"CSRFToken": "",
 		})
 	}
 
@@ -371,8 +402,10 @@ func (h *AdminHandler) LicenseKeysIndex(c *fiber.Ctx) error {
 		Find(&licenseKeys)
 
 	return c.Render("admin/license-keys/index", fiber.Map{
+		"ShowNav":     true,
+		"PageType":    "license-keys-index",
 		"LicenseKeys": licenseKeys,
-		"CSRFToken":   c.Locals("csrf"),
+		"CSRFToken":   "",
 	})
 }
 
@@ -383,9 +416,11 @@ func (h *AdminHandler) LicenseKeysNew(c *fiber.Ctx) error {
 	h.db.Find(&customers)
 
 	return c.Render("admin/license-keys/new", fiber.Map{
+		"ShowNav":   true,
+		"PageType":  "license-keys-new",
 		"Products":  products,
 		"Customers": customers,
-		"CSRFToken": c.Locals("csrf"),
+		"CSRFToken": "",
 	})
 }
 
@@ -420,6 +455,8 @@ func (h *AdminHandler) LicenseKeysShow(c *fiber.Ctx) error {
 	}
 
 	return c.Render("admin/license-keys/show", fiber.Map{
+		"ShowNav":    true,
+		"PageType":   "license-keys-show",
 		"LicenseKey": licenseKey,
 	})
 }
@@ -437,10 +474,12 @@ func (h *AdminHandler) LicenseKeysEdit(c *fiber.Ctx) error {
 	h.db.Find(&customers)
 
 	return c.Render("admin/license-keys/edit", fiber.Map{
+		"ShowNav":    true,
+		"PageType":   "license-keys-edit",
 		"LicenseKey": licenseKey,
 		"Products":   products,
 		"Customers":  customers,
-		"CSRFToken":  c.Locals("csrf"),
+		"CSRFToken":  "",
 	})
 }
 
@@ -538,7 +577,7 @@ func (h *AdminHandler) EmailConfigPage(c *fiber.Ctx) error {
 	return c.Render("admin/email-config", fiber.Map{
 		"ShowNav":   true,
 		"Config":    cfg,
-		"CSRFToken": c.Locals("csrf"),
+		"CSRFToken": "",
 	})
 }
 
@@ -555,7 +594,7 @@ func (h *AdminHandler) EmailConfigUpdate(c *fiber.Ctx) error {
 		"ShowNav":   true,
 		"Success":   message,
 		"Config":    config.New(), // In reality, you'd load the updated config
-		"CSRFToken": c.Locals("csrf"),
+		"CSRFToken": "",
 	})
 }
 
@@ -566,7 +605,7 @@ func (h *AdminHandler) EmailTestSend(c *fiber.Ctx) error {
 			"ShowNav":   true,
 			"Error":     "Please enter a test email address",
 			"Config":    config.New(),
-			"CSRFToken": c.Locals("csrf"),
+			"CSRFToken": "",
 		})
 	}
 
@@ -578,7 +617,7 @@ func (h *AdminHandler) EmailTestSend(c *fiber.Ctx) error {
 			"ShowNav":   true,
 			"Error":     fmt.Sprintf("Failed to send test email: %v", err),
 			"Config":    config.New(),
-			"CSRFToken": c.Locals("csrf"),
+			"CSRFToken": "",
 		})
 	}
 
@@ -586,6 +625,6 @@ func (h *AdminHandler) EmailTestSend(c *fiber.Ctx) error {
 		"ShowNav":   true,
 		"Success":   fmt.Sprintf("Test email sent successfully to %s", testEmail),
 		"Config":    config.New(),
-		"CSRFToken": c.Locals("csrf"),
+		"CSRFToken": "",
 	})
 }

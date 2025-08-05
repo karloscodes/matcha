@@ -77,7 +77,37 @@
         </div>
         {{end}}
 
-        {{template "content" .}}
+        {{if .ShowNav}}
+            {{if eq .PageType "dashboard"}}
+                {{template "dashboard-content" .}}
+            {{else if eq .PageType "products-index"}}
+                {{template "products-index-content" .}}
+            {{else if eq .PageType "products-new"}}
+                {{template "products-new-content" .}}
+            {{else if eq .PageType "products-show"}}
+                {{template "products-show-content" .}}
+            {{else if eq .PageType "products-edit"}}
+                {{template "products-edit-content" .}}
+            {{else if eq .PageType "customers-index"}}
+                {{template "customers-index-content" .}}
+            {{else if eq .PageType "customers-new"}}
+                {{template "customers-new-content" .}}
+            {{else if eq .PageType "customers-show"}}
+                {{template "customers-show-content" .}}
+            {{else if eq .PageType "customers-edit"}}
+                {{template "customers-edit-content" .}}
+            {{else if eq .PageType "license-keys-index"}}
+                {{template "license-keys-index-content" .}}
+            {{else if eq .PageType "license-keys-new"}}
+                {{template "license-keys-new-content" .}}
+            {{else if eq .PageType "license-keys-show"}}
+                {{template "license-keys-show-content" .}}
+            {{else if eq .PageType "license-keys-edit"}}
+                {{template "license-keys-edit-content" .}}
+            {{end}}
+        {{else}}
+            {{template "login-content" .}}
+        {{end}}
     </div>
 
     <script>

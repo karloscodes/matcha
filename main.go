@@ -13,7 +13,6 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
-	"github.com/gofiber/fiber/v2/middleware/csrf"
 	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
@@ -56,7 +55,11 @@ func main() {
 	emailService := services.NewEmailService(cfg)
 
 	// Initialize handlers
-	adminHandler := handlers.NewAdminHandler(db)
+	dashboardHandler := handlers.NewDashboardHandler(db)
+	usersHandler := handlers.NewUsersHandler(db)
+	productsHandler := handlers.NewProductsHandler(db)
+	customersHandler := handlers.NewCustomersHandler(db)
+	licenseKeysHandler := handlers.NewLicenseKeysHandler(db)
 	apiHandler := handlers.NewAPIHandler(db)
 	webhookHandler := handlers.NewWebhookHandler(db, emailService)
 
@@ -142,75 +145,69 @@ func main() {
 	app.Static("/static", "./static")
 
 	// Routes
-	setupRoutes(app, adminHandler, apiHandler, webhookHandler)
+	setupRoutes(app, dashboardHandler, usersHandler, productsHandler, customersHandler, licenseKeysHandler, apiHandler, webhookHandler)
 
 	// Start server
 	log.Printf("Server starting on port %s in %s environment", cfg.Port, cfg.Environment)
 	log.Fatal(app.Listen(":" + cfg.Port))
 }
 
-func setupRoutes(app *fiber.App, adminHandler *handlers.AdminHandler, apiHandler *handlers.APIHandler, webhookHandler *handlers.WebhookHandler) {
-	// Redirect root to admin
+func setupRoutes(app *fiber.App, dashboardHandler *handlers.DashboardHandler, usersHandler *handlers.UsersHandler, productsHandler *handlers.ProductsHandler, customersHandler *handlers.CustomersHandler, licenseKeysHandler *handlers.LicenseKeysHandler, apiHandler *handlers.APIHandler, webhookHandler *handlers.WebhookHandler) {
+	// Redirect root to admin dashboard
 	app.Get("/", func(c *fiber.Ctx) error {
-		return c.Redirect("/admin")
+		return c.Redirect("/admin/")
 	})
 
 	// Admin routes
 	admin := app.Group("/admin")
 
 	// Login routes (no CSRF protection) - MUST BE FIRST
-	admin.Get("/login", adminHandler.LoginPage)
-	admin.Post("/login", adminHandler.Login)
-	admin.Get("/logout", adminHandler.Logout)
+	admin.Get("/login", usersHandler.LoginPage)
+	admin.Post("/login", usersHandler.Login)
+	admin.Get("/logout", usersHandler.Logout)
 
-	// Authentication middleware with CSRF for protected routes
-	adminProtected := admin.Group("/", middleware.RequireAuth, csrf.New(csrf.Config{
-		KeyLookup:      "form:_token",
-		CookieName:     "csrf_",
-		CookieSameSite: "Lax",
-		Expiration:     1 * 60 * 60, // 1 hour
-		ContextKey:     "csrf",
-	}))
+	// Authentication middleware for protected routes
+	adminProtected := admin.Group("/", middleware.RequireAuth)
 
-	adminProtected.Get("/", adminHandler.Dashboard)
+	adminProtected.Get("/", dashboardHandler.Dashboard)
 
 	// Products
-	adminProtected.Get("/products", adminHandler.ProductsIndex)
-	adminProtected.Get("/products/new", adminHandler.ProductsNew)
-	adminProtected.Post("/products", adminHandler.ProductsCreate)
-	adminProtected.Get("/products/:id", adminHandler.ProductsShow)
-	adminProtected.Get("/products/:id/edit", adminHandler.ProductsEdit)
-	adminProtected.Put("/products/:id", adminHandler.ProductsUpdate)
-	adminProtected.Post("/products/:id", adminHandler.ProductsUpdate) // For form method override
-	adminProtected.Delete("/products/:id", adminHandler.ProductsDelete)
+	adminProtected.Get("/products", productsHandler.Index)
+	adminProtected.Get("/products/new", productsHandler.New)
+	adminProtected.Post("/products", productsHandler.Create)
+	adminProtected.Get("/products/:id", productsHandler.Show)
+	adminProtected.Get("/products/:id/edit", productsHandler.Edit)
+	adminProtected.Put("/products/:id", productsHandler.Update)
+	adminProtected.Post("/products/:id", productsHandler.Update) // For form method override
+	adminProtected.Delete("/products/:id", productsHandler.Delete)
 
 	// Customers
-	adminProtected.Get("/customers", adminHandler.CustomersIndex)
-	adminProtected.Get("/customers/new", adminHandler.CustomersNew)
-	adminProtected.Post("/customers", adminHandler.CustomersCreate)
-	adminProtected.Get("/customers/:id", adminHandler.CustomersShow)
-	adminProtected.Get("/customers/:id/edit", adminHandler.CustomersEdit)
-	adminProtected.Put("/customers/:id", adminHandler.CustomersUpdate)
-	adminProtected.Post("/customers/:id", adminHandler.CustomersUpdate) // For form method override
-	adminProtected.Delete("/customers/:id", adminHandler.CustomersDelete)
+	adminProtected.Get("/customers", customersHandler.Index)
+	adminProtected.Get("/customers/new", customersHandler.New)
+	adminProtected.Post("/customers", customersHandler.Create)
+	adminProtected.Get("/customers/:id", customersHandler.Show)
+	adminProtected.Get("/customers/:id/edit", customersHandler.Edit)
+	adminProtected.Put("/customers/:id", customersHandler.Update)
+	adminProtected.Post("/customers/:id", customersHandler.Update) // For form method override
+	adminProtected.Delete("/customers/:id", customersHandler.Delete)
 
 	// License Keys
-	adminProtected.Get("/license-keys", adminHandler.LicenseKeysIndex)
-	adminProtected.Get("/license-keys/new", adminHandler.LicenseKeysNew)
-	adminProtected.Post("/license-keys", adminHandler.LicenseKeysCreate)
-	adminProtected.Get("/license-keys/:id", adminHandler.LicenseKeysShow)
-	adminProtected.Get("/license-keys/:id/edit", adminHandler.LicenseKeysEdit)
-	adminProtected.Put("/license-keys/:id", adminHandler.LicenseKeysUpdate)
-	adminProtected.Post("/license-keys/:id", adminHandler.LicenseKeysUpdate) // For form method override
-	adminProtected.Delete("/license-keys/:id", adminHandler.LicenseKeysDelete)
-	adminProtected.Post("/license-keys/:id/revoke", adminHandler.LicenseKeysRevoke)
-	adminProtected.Post("/license-keys/:id/reactivate", adminHandler.LicenseKeysReactivate)
-	adminProtected.Post("/license-keys/:id/send-email", adminHandler.LicenseKeysSendEmail)
+	adminProtected.Get("/license-keys", licenseKeysHandler.Index)
+	adminProtected.Get("/license-keys/new", licenseKeysHandler.New)
+	adminProtected.Post("/license-keys", licenseKeysHandler.Create)
+	adminProtected.Get("/license-keys/:id", licenseKeysHandler.Show)
+	adminProtected.Get("/license-keys/:id/edit", licenseKeysHandler.Edit)
+	adminProtected.Put("/license-keys/:id", licenseKeysHandler.Update)
+	adminProtected.Post("/license-keys/:id", licenseKeysHandler.Update) // For form method override
+	adminProtected.Delete("/license-keys/:id", licenseKeysHandler.Delete)
+	adminProtected.Post("/license-keys/:id/revoke", licenseKeysHandler.Revoke)
+	adminProtected.Post("/license-keys/:id/reactivate", licenseKeysHandler.Reactivate)
+	adminProtected.Post("/license-keys/:id/send-email", licenseKeysHandler.SendEmail)
 
 	// Email Configuration
-	adminProtected.Get("/email-config", adminHandler.EmailConfigPage)
-	adminProtected.Post("/email-config", adminHandler.EmailConfigUpdate)
-	adminProtected.Post("/email-config/test", adminHandler.EmailTestSend)
+	adminProtected.Get("/email-config", dashboardHandler.EmailConfigPage)
+	adminProtected.Post("/email-config", dashboardHandler.EmailConfigUpdate)
+	adminProtected.Post("/email-config/test", dashboardHandler.EmailTestSend)
 
 	// API routes
 	api := app.Group("/api/v1")
