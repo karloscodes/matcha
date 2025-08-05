@@ -81,9 +81,13 @@ func (h *AdminHandler) Dashboard(c *fiber.Ctx) error {
 		Find(&recentLicenses)
 
 	return c.Render("admin/dashboard/index", fiber.Map{
-		"ShowNav":        true,
-		"Stats":          stats,
-		"RecentLicenses": recentLicenses,
+		"ShowNav":            true,
+		"Title":              "Dashboard",
+		"ProductCount":       stats.TotalProducts,
+		"CustomerCount":      stats.TotalCustomers,
+		"TotalLicenseCount":  stats.TotalLicenses,
+		"ActiveLicenseCount": stats.ActiveLicenses,
+		"RecentLicenses":     recentLicenses,
 	})
 }
 

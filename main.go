@@ -61,7 +61,7 @@ func main() {
 	webhookHandler := handlers.NewWebhookHandler(db, emailService)
 
 	// Initialize template engine
-	engine := html.New("./templates", ".html")
+	engine := html.New("./templates", ".gohtml")
 
 	// Add template functions
 	engine.AddFunc("dict", func(values ...interface{}) map[string]interface{} {
@@ -77,8 +77,8 @@ func main() {
 		return dict
 	})
 
-	// Set the global layout for all admin templates
-	engine.Layout("layouts/base")
+	// Don't use global layout - templates will extend layouts manually
+	// engine.Layout("layouts/base")
 	engine.Reload(cfg.IsDevelopment()) // Only reload in development
 	engine.Debug(cfg.Debug)
 
