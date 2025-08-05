@@ -77,8 +77,8 @@ func main() {
 		return dict
 	})
 
-	// Don't set a global layout - let templates specify their own
-	// engine.Layout("layouts/base") // Removed - templates will call layouts manually
+	// Set the global layout for all admin templates
+	engine.Layout("layouts/base")
 	engine.Reload(cfg.IsDevelopment()) // Only reload in development
 	engine.Debug(cfg.Debug)
 

@@ -5,34 +5,64 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{if .Title}}{{.Title}} - {{end}}License Key Manager</title>
-    <link href="/static/css/styles.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#6b7280',
+                        success: '#10b981',
+                        warning: '#f59e0b',
+                        danger: '#ef4444',
+                        info: '#06b6d4'
+                    }
+                }
+            }
+        }
+    </script>
 </head>
 
 <body class="bg-gray-50 min-h-screen">
     {{if .ShowNav}}
-    <nav class="bg-white shadow">
+    <nav class="bg-gray-900 shadow-lg">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16">
-                <div class="flex">
-                    <div class="flex-shrink-0 flex items-center">
-                        <h1 class="text-xl font-bold">License Manager</h1>
-                    </div>
-                    <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
-                        <a href="/admin/dashboard"
-                            class="text-gray-900 hover:text-gray-700 px-3 py-2 text-sm font-medium">Dashboard</a>
-                        <a href="/admin/products"
-                            class="text-gray-900 hover:text-gray-700 px-3 py-2 text-sm font-medium">Products</a>
-                        <a href="/admin/customers"
-                            class="text-gray-900 hover:text-gray-700 px-3 py-2 text-sm font-medium">Customers</a>
-                        <a href="/admin/license-keys"
-                            class="text-gray-900 hover:text-gray-700 px-3 py-2 text-sm font-medium">License Keys</a>
-                    </div>
-                </div>
+            <div class="flex items-center justify-between h-16">
                 <div class="flex items-center">
-                    <form method="POST" action="/admin/logout">
-                        <button type="submit"
-                            class="text-gray-900 hover:text-gray-700 px-3 py-2 text-sm font-medium">Logout</button>
-                    </form>
+                    <a href="/admin" class="text-white text-lg font-semibold">
+                        License Key Manager
+                    </a>
+                </div>
+
+                <div class="relative">
+                    <div class="relative inline-block text-left">
+                        <button onclick="toggleDropdown()"
+                            class="flex items-center text-white hover:text-gray-300 focus:outline-none focus:text-gray-300">
+                            <span class="mr-2">Admin</span>
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+
+                        <div id="dropdown"
+                            class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
+                            <a href="/admin"
+                                class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Dashboard</a>
+                            <a href="/admin/products"
+                                class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Products</a>
+                            <a href="/admin/customers"
+                                class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Customers</a>
+                            <a href="/admin/license-keys"
+                                class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">License Keys</a>
+                            <a href="/admin/email-config"
+                                class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Email Config</a>
+                            <hr class="my-1">
+                            <a href="/admin/logout"
+                                class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Logout</a>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -51,7 +81,20 @@
     </div>
 
     <script>
-        // Add any common JavaScript here
+        function toggleDropdown() {
+            const dropdown = document.getElementById('dropdown');
+            dropdown.classList.toggle('hidden');
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function (event) {
+            const dropdown = document.getElementById('dropdown');
+            const button = event.target.closest('button');
+
+            if (!button && dropdown && !dropdown.classList.contains('hidden')) {
+                dropdown.classList.add('hidden');
+            }
+        });
     </script>
 </body>
 
