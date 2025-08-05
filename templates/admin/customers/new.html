@@ -46,9 +46,12 @@
             <div id="dropdown" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
               <a href="/admin" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Dashboard</a>
               <a href="/admin/products" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Products</a>
-              <a href="/admin/customers" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 bg-gray-50">Customers</a>
-              <a href="/admin/license-keys" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">License Keys</a>
-              <a href="/admin/email-config" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Email Config</a>
+              <a href="/admin/customers"
+                class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 bg-gray-50">Customers</a>
+              <a href="/admin/license-keys" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">License
+                Keys</a>
+              <a href="/admin/email-config" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Email
+                Config</a>
               <hr class="my-1">
               <a href="/admin/logout" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Logout</a>
             </div>
@@ -118,7 +121,8 @@
           </div>
 
           <div>
-            <label for="company" class="block text-sm font-medium text-gray-700">Company <span class="text-gray-400">(optional)</span></label>
+            <label for="company" class="block text-sm font-medium text-gray-700">Company <span
+                class="text-gray-400">(optional)</span></label>
             <input type="text" name="company" id="company"
               class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
               placeholder="ACME Corp" value="{{if .Customer}}{{.Customer.Company}}{{end}}">

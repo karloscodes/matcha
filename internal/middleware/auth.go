@@ -1,7 +1,9 @@
 package middleware
 
 import (
+	"log"
 	"time"
+
 	"license-key-manager/internal/config"
 	"license-key-manager/internal/models"
 
@@ -13,13 +15,15 @@ import (
 var store *session.Store
 
 func InitAuth(cfg *config.Config) {
+	log.Printf("Initializing auth with SecretKey: %s", cfg.SecretKey)
 	store = session.New(session.Config{
 		KeyLookup:      "cookie:license_mgr_session",
-		Expiration:     30 * 24 * time.Hour, // 30 days
-		CookieHTTPOnly: true,                // Prevent XSS attacks
-		CookieSecure:   cfg.IsProduction(),  // Use secure cookies in production
-		CookieSameSite: "Lax",               // CSRF protection
-		CookiePath:     "/",                 // Cookie available for entire site
+		Expiration:     30 * 24 * time.Hour,                    // 30 days
+		CookieHTTPOnly: true,                                   // Prevent XSS attacks
+		CookieSecure:   cfg.IsProduction(),                     // Use secure cookies in production
+		CookieSameSite: "Lax",                                  // CSRF protection
+		CookiePath:     "/",                                    // Cookie available for entire site
+		KeyGenerator:   func() string { return cfg.SecretKey }, // Use consistent secret key
 	})
 }
 

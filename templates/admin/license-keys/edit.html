@@ -49,7 +49,8 @@
               <a href="/admin/customers" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Customers</a>
               <a href="/admin/license-keys"
                 class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 bg-gray-50">License Keys</a>
-              <a href="/admin/email-config" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Email Config</a>
+              <a href="/admin/email-config" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Email
+                Config</a>
               <hr class="my-1">
               <a href="/admin/logout" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Logout</a>
             </div>
@@ -174,7 +175,7 @@
           <div>
             <label for="expires_at" class="block text-sm font-medium text-gray-700">Expiration Date</label>
             <input type="date" name="expires_at" id="expires_at"
-              value="{{if .LicenseKey.ExpiresAt}}{{.LicenseKey.ExpiresAt.Format "2006-01-02"}}{{end}}"
+              value="{{if .LicenseKey.ExpiresAt}}{{.LicenseKey.ExpiresAt.Format " 2006-01-02"}}{{end}}"
               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
             <p class="mt-2 text-sm text-gray-500">Leave empty for no expiration.</p>
           </div>

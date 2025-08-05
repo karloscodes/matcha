@@ -25,10 +25,13 @@ func main() {
 	// Load environment variables
 	if err := godotenv.Load(); err != nil {
 		log.Println("No .env file found")
+	} else {
+		log.Println("Loaded .env file successfully")
 	}
 
 	// Initialize configuration
 	cfg := config.New()
+	log.Printf("Configuration loaded - SecretKey: %s", cfg.SecretKey)
 
 	// Initialize authentication middleware
 	middleware.InitAuth(cfg)
@@ -98,8 +101,8 @@ func main() {
 
 	// Rate limiting - stricter for API endpoints
 	app.Use("/api/v1/licenses/verify", limiter.New(limiter.Config{
-		Max:        60,  // 60 requests per window
-		Expiration: 60,  // 1 minute window
+		Max:        60, // 60 requests per window
+		Expiration: 60, // 1 minute window
 		KeyGenerator: func(c *fiber.Ctx) string {
 			// Rate limit by IP address
 			return c.IP()
@@ -137,12 +140,12 @@ func setupRoutes(app *fiber.App, adminHandler *handlers.AdminHandler, apiHandler
 
 	// Admin routes
 	admin := app.Group("/admin")
-	
+
 	// Login routes (no CSRF protection) - MUST BE FIRST
 	admin.Get("/login", adminHandler.LoginPage)
 	admin.Post("/login", adminHandler.Login)
 	admin.Get("/logout", adminHandler.Logout)
-	
+
 	// Authentication middleware with CSRF for protected routes
 	adminProtected := admin.Group("/", middleware.RequireAuth, csrf.New(csrf.Config{
 		KeyLookup:      "form:_token",
@@ -151,7 +154,7 @@ func setupRoutes(app *fiber.App, adminHandler *handlers.AdminHandler, apiHandler
 		Expiration:     1 * 60 * 60, // 1 hour
 		ContextKey:     "csrf",
 	}))
-	
+
 	adminProtected.Get("/", adminHandler.Dashboard)
 
 	// Products

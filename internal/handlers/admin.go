@@ -113,7 +113,6 @@ func (h *AdminHandler) ProductsCreate(c *fiber.Ctx) error {
 		Version:     c.FormValue("version"),
 	}
 
-
 	// Handle expiration days
 	if days, err := strconv.Atoi(c.FormValue("default_expiration_days")); err == nil {
 		product.DefaultExpirationDays = days
@@ -132,7 +131,6 @@ func (h *AdminHandler) ProductsCreate(c *fiber.Ctx) error {
 	err := database.PerformWrite(h.db, func(db *gorm.DB) error {
 		return db.Create(&product).Error
 	})
-
 	if err != nil {
 		return c.Render("admin/products/new", fiber.Map{
 			"Error":   "Failed to create product: " + err.Error(),
@@ -196,7 +194,6 @@ func (h *AdminHandler) ProductsUpdate(c *fiber.Ctx) error {
 	err := database.PerformWrite(h.db, func(db *gorm.DB) error {
 		return db.Save(&product).Error
 	})
-
 	if err != nil {
 		return c.Render("admin/products/edit", fiber.Map{
 			"Error":     "Failed to update product: " + err.Error(),
@@ -261,7 +258,6 @@ func (h *AdminHandler) CustomersCreate(c *fiber.Ctx) error {
 	err := database.PerformWrite(h.db, func(db *gorm.DB) error {
 		return db.Create(&customer).Error
 	})
-
 	if err != nil {
 		return c.Render("admin/customers/new", fiber.Map{
 			"Error":    "Failed to create customer: " + err.Error(),
@@ -333,7 +329,6 @@ func (h *AdminHandler) CustomersUpdate(c *fiber.Ctx) error {
 	err := database.PerformWrite(h.db, func(db *gorm.DB) error {
 		return db.Save(&customer).Error
 	})
-
 	if err != nil {
 		return c.Render("admin/customers/edit", fiber.Map{
 			"Error":     "Failed to update customer: " + err.Error(),
@@ -348,11 +343,10 @@ func (h *AdminHandler) CustomersUpdate(c *fiber.Ctx) error {
 
 func (h *AdminHandler) CustomersDelete(c *fiber.Ctx) error {
 	id, _ := strconv.Atoi(c.Params("id"))
-	
+
 	err := database.PerformWrite(h.db, func(db *gorm.DB) error {
 		return db.Delete(&models.Customer{}, id).Error
 	})
-
 	if err != nil {
 		return c.Status(500).SendString("Failed to delete customer")
 	}
@@ -466,7 +460,6 @@ func (h *AdminHandler) LicenseKeysUpdate(c *fiber.Ctx) error {
 	err := database.PerformWrite(h.db, func(db *gorm.DB) error {
 		return db.Save(&licenseKey).Error
 	})
-
 	if err != nil {
 		var products []models.Product
 		var customers []models.Customer
@@ -532,7 +525,7 @@ func (h *AdminHandler) LicenseKeysSendEmail(c *fiber.Ctx) error {
 func (h *AdminHandler) EmailConfigPage(c *fiber.Ctx) error {
 	// Read current config (in a real app, you'd save this to database)
 	cfg := config.New()
-	
+
 	return c.Render("admin/email-config", fiber.Map{
 		"ShowNav":   true,
 		"Config":    cfg,
@@ -543,12 +536,12 @@ func (h *AdminHandler) EmailConfigPage(c *fiber.Ctx) error {
 func (h *AdminHandler) EmailConfigUpdate(c *fiber.Ctx) error {
 	// In a real application, you would save these to database
 	// For now, we'll show how the form would work
-	
+
 	emailService := c.FormValue("email_service")
 	fromEmail := c.FormValue("from_email")
-	
+
 	message := fmt.Sprintf("Email configuration updated: Service=%s, From=%s", emailService, fromEmail)
-	
+
 	return c.Render("admin/email-config", fiber.Map{
 		"ShowNav":   true,
 		"Success":   message,
@@ -567,11 +560,10 @@ func (h *AdminHandler) EmailTestSend(c *fiber.Ctx) error {
 			"CSRFToken": c.Locals("csrf"),
 		})
 	}
-	
+
 	// Actually send a test email
 	emailService := services.NewEmailService(config.New())
 	err := emailService.SendTestEmail(testEmail)
-	
 	if err != nil {
 		return c.Render("admin/email-config", fiber.Map{
 			"ShowNav":   true,
@@ -580,7 +572,7 @@ func (h *AdminHandler) EmailTestSend(c *fiber.Ctx) error {
 			"CSRFToken": c.Locals("csrf"),
 		})
 	}
-	
+
 	return c.Render("admin/email-config", fiber.Map{
 		"ShowNav":   true,
 		"Success":   fmt.Sprintf("Test email sent successfully to %s", testEmail),

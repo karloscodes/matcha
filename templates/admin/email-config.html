@@ -47,9 +47,11 @@
               <a href="/admin" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Dashboard</a>
               <a href="/admin/products" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Products</a>
               <a href="/admin/customers" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Customers</a>
-              <a href="/admin/license-keys" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">License Keys</a>
+              <a href="/admin/license-keys" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">License
+                Keys</a>
               <hr class="my-1">
-              <a href="/admin/email-config" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 bg-gray-50">Settings</a>
+              <a href="/admin/email-config"
+                class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 bg-gray-50">Settings</a>
               <hr class="my-1">
               <a href="/admin/logout" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Logout</a>
             </div>
@@ -81,7 +83,7 @@
       <div class="px-6 py-4 border-b border-gray-200">
         <h2 class="text-lg font-medium text-gray-900">Email Provider Configuration</h2>
       </div>
-      
+
       <form method="POST" action="/admin/email-config" class="px-6 py-6">
         <input type="hidden" name="_token" value="{{.CSRFToken}}">
         <div class="space-y-6">
@@ -90,11 +92,10 @@
             <label class="block text-sm font-medium text-gray-700 mb-3">Email Service Provider</label>
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div class="relative">
-                <input type="radio" name="email_service" value="smtp" id="smtp" 
-                       {{if eq .Config.EmailService "smtp"}}checked{{end}}
-                       class="sr-only peer" onchange="showProvider('smtp')">
-                <label for="smtp" 
-                       class="flex p-4 bg-white border-2 border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 peer-checked:border-blue-500 peer-checked:bg-blue-50">
+                <input type="radio" name="email_service" value="smtp" id="smtp" {{if eq .Config.EmailService "smtp"
+                  }}checked{{end}} class="sr-only peer" onchange="showProvider('smtp')">
+                <label for="smtp"
+                  class="flex p-4 bg-white border-2 border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 peer-checked:border-blue-500 peer-checked:bg-blue-50">
                   <div class="block">
                     <div class="w-full text-lg font-semibold">SMTP</div>
                     <div class="w-full text-sm text-gray-500">Custom SMTP server</div>
@@ -103,11 +104,11 @@
               </div>
 
               <div class="relative">
-                <input type="radio" name="email_service" value="mailgun" id="mailgun"
-                       {{if eq .Config.EmailService "mailgun"}}checked{{end}}
-                       class="sr-only peer" onchange="showProvider('mailgun')">
+                <input type="radio" name="email_service" value="mailgun" id="mailgun" {{if eq
+                  .Config.EmailService "mailgun" }}checked{{end}} class="sr-only peer"
+                  onchange="showProvider('mailgun')">
                 <label for="mailgun"
-                       class="flex p-4 bg-white border-2 border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 peer-checked:border-blue-500 peer-checked:bg-blue-50">
+                  class="flex p-4 bg-white border-2 border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 peer-checked:border-blue-500 peer-checked:bg-blue-50">
                   <div class="block">
                     <div class="w-full text-lg font-semibold">Mailgun</div>
                     <div class="w-full text-sm text-gray-500">Mailgun API</div>
@@ -116,11 +117,11 @@
               </div>
 
               <div class="relative">
-                <input type="radio" name="email_service" value="sendgrid" id="sendgrid"
-                       {{if eq .Config.EmailService "sendgrid"}}checked{{end}}
-                       class="sr-only peer" onchange="showProvider('sendgrid')">
+                <input type="radio" name="email_service" value="sendgrid" id="sendgrid" {{if eq
+                  .Config.EmailService "sendgrid" }}checked{{end}} class="sr-only peer"
+                  onchange="showProvider('sendgrid')">
                 <label for="sendgrid"
-                       class="flex p-4 bg-white border-2 border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 peer-checked:border-blue-500 peer-checked:bg-blue-50">
+                  class="flex p-4 bg-white border-2 border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 peer-checked:border-blue-500 peer-checked:bg-blue-50">
                   <div class="block">
                     <div class="w-full text-lg font-semibold">SendGrid</div>
                     <div class="w-full text-sm text-gray-500">SendGrid API</div>
@@ -140,10 +141,10 @@
           </div>
 
           <!-- SMTP Settings -->
-          <div id="smtp-settings" class="space-y-4 p-4 bg-gray-50 rounded-lg" 
-               style="display: {{if eq .Config.EmailService "smtp"}}block{{else}}none{{end}}">
+          <div id="smtp-settings" class="space-y-4 p-4 bg-gray-50 rounded-lg"
+            style="display: {{if eq .Config.EmailService " smtp"}}block{{else}}none{{end}}">
             <h3 class="text-md font-medium text-gray-900">SMTP Configuration</h3>
-            
+
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label for="smtp_server" class="block text-sm font-medium text-gray-700">SMTP Server</label>
@@ -151,7 +152,7 @@
                   class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
                   placeholder="smtp.gmail.com" value="{{.Config.SMTPServer}}">
               </div>
-              
+
               <div>
                 <label for="smtp_port" class="block text-sm font-medium text-gray-700">SMTP Port</label>
                 <input type="number" name="smtp_port" id="smtp_port"
@@ -167,7 +168,7 @@
                   class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
                   placeholder="your-email@gmail.com" value="{{.Config.SMTPUsername}}">
               </div>
-              
+
               <div>
                 <label for="smtp_password" class="block text-sm font-medium text-gray-700">Password</label>
                 <input type="password" name="smtp_password" id="smtp_password"
@@ -177,18 +178,17 @@
             </div>
 
             <div class="flex items-center">
-              <input type="checkbox" name="smtp_tls" id="smtp_tls" 
-                     {{if eq .Config.SMTPTLS "true"}}checked{{end}}
-                     class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+              <input type="checkbox" name="smtp_tls" id="smtp_tls" {{if eq .Config.SMTPTLS "true" }}checked{{end}}
+                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
               <label for="smtp_tls" class="ml-2 block text-sm text-gray-900">Use TLS encryption</label>
             </div>
           </div>
 
           <!-- Mailgun Settings -->
           <div id="mailgun-settings" class="space-y-4 p-4 bg-gray-50 rounded-lg"
-               style="display: {{if eq .Config.EmailService "mailgun"}}block{{else}}none{{end}}">
+            style="display: {{if eq .Config.EmailService " mailgun"}}block{{else}}none{{end}}">
             <h3 class="text-md font-medium text-gray-900">Mailgun Configuration</h3>
-            
+
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label for="mailgun_domain" class="block text-sm font-medium text-gray-700">Mailgun Domain</label>
@@ -196,7 +196,7 @@
                   class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
                   placeholder="mg.yourdomain.com" value="{{.Config.MailgunDomain}}">
               </div>
-              
+
               <div>
                 <label for="mailgun_api_key" class="block text-sm font-medium text-gray-700">API Key</label>
                 <input type="password" name="mailgun_api_key" id="mailgun_api_key"
@@ -208,9 +208,9 @@
 
           <!-- SendGrid Settings -->
           <div id="sendgrid-settings" class="space-y-4 p-4 bg-gray-50 rounded-lg"
-               style="display: {{if eq .Config.EmailService "sendgrid"}}block{{else}}none{{end}}">
+            style="display: {{if eq .Config.EmailService " sendgrid"}}block{{else}}none{{end}}">
             <h3 class="text-md font-medium text-gray-900">SendGrid Configuration</h3>
-            
+
             <div>
               <label for="sendgrid_api_key" class="block text-sm font-medium text-gray-700">SendGrid API Key</label>
               <input type="password" name="sendgrid_api_key" id="sendgrid_api_key"
@@ -236,7 +236,7 @@
         <h2 class="text-lg font-medium text-gray-900">Test Email Delivery</h2>
         <p class="mt-1 text-sm text-gray-500">Send a test email to verify your configuration</p>
       </div>
-      
+
       <form method="POST" action="/admin/email-config/test" class="px-6 py-6">
         <input type="hidden" name="_token" value="{{.CSRFToken}}">
         <div class="flex gap-4">
@@ -278,13 +278,13 @@
       document.getElementById('smtp-settings').style.display = 'none';
       document.getElementById('mailgun-settings').style.display = 'none';
       document.getElementById('sendgrid-settings').style.display = 'none';
-      
+
       // Show selected provider section
       document.getElementById(provider + '-settings').style.display = 'block';
     }
 
     // Initialize on page load
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
       const selectedProvider = document.querySelector('input[name="email_service"]:checked');
       if (selectedProvider) {
         showProvider(selectedProvider.value);
