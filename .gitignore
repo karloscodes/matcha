@@ -54,3 +54,4 @@ temp/
 bin/
 build/
 dist/
+node_modules/

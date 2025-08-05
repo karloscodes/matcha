@@ -26,7 +26,7 @@ func NewAdminHandler(db *gorm.DB) *AdminHandler {
 
 // Authentication
 func (h *AdminHandler) LoginPage(c *fiber.Ctx) error {
-	return c.Render("admin/login", fiber.Map{})
+	return c.Render("admin/users/login", fiber.Map{})
 }
 
 func (h *AdminHandler) Login(c *fiber.Ctx) error {
@@ -35,13 +35,13 @@ func (h *AdminHandler) Login(c *fiber.Ctx) error {
 
 	var admin models.AdminUser
 	if err := h.db.Where("username = ?", username).First(&admin).Error; err != nil {
-		return c.Render("admin/login", fiber.Map{
+		return c.Render("admin/users/login", fiber.Map{
 			"Error": "Invalid username or password",
 		})
 	}
 
 	if !admin.CheckPassword(password) {
-		return c.Render("admin/login", fiber.Map{
+		return c.Render("admin/users/login", fiber.Map{
 			"Error": "Invalid username or password",
 		})
 	}
@@ -80,7 +80,7 @@ func (h *AdminHandler) Dashboard(c *fiber.Ctx) error {
 		Limit(10).
 		Find(&recentLicenses)
 
-	return c.Render("admin/dashboard", fiber.Map{
+	return c.Render("admin/dashboard/index", fiber.Map{
 		"ShowNav":        true,
 		"Stats":          stats,
 		"RecentLicenses": recentLicenses,

@@ -8,13 +8,25 @@ help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 # Development
-dev: deps ## Start development server with hot reload
+dev: deps build-css ## Start development server with hot reload and CSS building
 	@echo "Starting development server with hot reload..."
 	@if ! command -v air > /dev/null; then \
 		echo "Installing air for hot reload..."; \
 		go install github.com/air-verse/air@latest; \
 	fi
 	@GO_ENV=development air
+
+build-css: ## Build Tailwind CSS
+	@echo "Building Tailwind CSS..."
+	@if [ ! -d "node_modules" ]; then \
+		echo "Installing npm dependencies..."; \
+		npm install; \
+	fi
+	@npm run build-css-prod
+
+watch-css: ## Watch and rebuild CSS on changes
+	@echo "Watching CSS files for changes..."
+	@npm run build-css
 
 run: ## Run the application
 	@echo "Starting License Key Manager..."
@@ -33,7 +45,7 @@ deps: ## Download and install dependencies
 # Database
 db-reset: ## Reset the database (removes existing data)
 	@echo "Resetting database..."
-	@rm -f license_manager.db test_license_manager.db prod_license_manager.db
+	@rm -f db/license_manager.db db/test_license_manager.db
 
 db-migrate: ## Run database migrations
 	@echo "Running database migrations..."

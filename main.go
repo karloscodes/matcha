@@ -62,6 +62,23 @@ func main() {
 
 	// Initialize template engine
 	engine := html.New("./templates", ".html")
+
+	// Add template functions
+	engine.AddFunc("dict", func(values ...interface{}) map[string]interface{} {
+		dict := make(map[string]interface{})
+		for i := 0; i < len(values); i += 2 {
+			if i+1 < len(values) {
+				key, ok := values[i].(string)
+				if ok {
+					dict[key] = values[i+1]
+				}
+			}
+		}
+		return dict
+	})
+
+	// Don't set a global layout - let templates specify their own
+	// engine.Layout("layouts/base") // Removed - templates will call layouts manually
 	engine.Reload(cfg.IsDevelopment()) // Only reload in development
 	engine.Debug(cfg.Debug)
 
