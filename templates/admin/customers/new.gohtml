@@ -1,3 +1,6 @@
+{{template "layouts/base" .}}
+
+{{define "content"}}
 <div class="mb-8">
   <nav class="flex" aria-label="Breadcrumb">
     <ol class="flex items-center space-x-4">
@@ -34,3 +37,4 @@
     {{template "admin/customers/_form" dict "FormAction" "/admin/customers" "Customer" nil}}
   </div>
 </div>
+{{end}}

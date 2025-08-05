@@ -6,14 +6,12 @@ import (
 	"strings"
 	"time"
 
-	"license-key-manager/internal/config"
-	"license-key-manager/internal/database"
-	"license-key-manager/internal/middleware"
-	"license-key-manager/internal/models"
-	"license-key-manager/internal/services"
-
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
+	"github.com/gofiber/fiber/v2"
+	"gorm.io/gorm"
+	"github.com/gofiber/fiber/v2"
+	"gorm.io/gorm""""manager/internal/databasemanager/internal/services"
 )
 
 type AdminHandler struct {
@@ -26,7 +24,10 @@ func NewAdminHandler(db *gorm.DB) *AdminHandler {
 
 // Authentication
 func (h *AdminHandler) LoginPage(c *fiber.Ctx) error {
-	return c.Render("admin/users/login", fiber.Map{})
+	return c.Render("admin/users/login", fiber.Map{
+		"ShowNav": false,
+		"Title":   "Login",
+	})
 }
 
 func (h *AdminHandler) Login(c *fiber.Ctx) error {
@@ -36,13 +37,17 @@ func (h *AdminHandler) Login(c *fiber.Ctx) error {
 	var admin models.AdminUser
 	if err := h.db.Where("username = ?", username).First(&admin).Error; err != nil {
 		return c.Render("admin/users/login", fiber.Map{
-			"Error": "Invalid username or password",
+			"Error":   "Invalid username or password",
+			"ShowNav": false,
+			"Title":   "Login",
 		})
 	}
 
 	if !admin.CheckPassword(password) {
 		return c.Render("admin/users/login", fiber.Map{
-			"Error": "Invalid username or password",
+			"Error":   "Invalid username or password",
+			"ShowNav": false,
+			"Title":   "Login",
 		})
 	}
 
