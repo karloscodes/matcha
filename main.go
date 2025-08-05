@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"strings"
 
 	"license-key-manager/internal/config"
 	"license-key-manager/internal/database"
@@ -83,10 +84,13 @@ func main() {
 
 	// Method override middleware for HTML forms
 	app.Use(func(c *fiber.Ctx) error {
-		if c.Method() == "POST" {
+		if c.Method() == fiber.MethodPost {
 			method := c.FormValue("_method")
-			if method == "PUT" || method == "DELETE" || method == "PATCH" {
-				c.Request().Header.SetMethod(method)
+			if method != "" {
+				method = strings.ToUpper(method)
+				if method == fiber.MethodPut || method == fiber.MethodDelete || method == fiber.MethodPatch {
+					c.Request().Header.SetMethod(method)
+				}
 			}
 		}
 		return c.Next()
@@ -157,6 +161,7 @@ func setupRoutes(app *fiber.App, adminHandler *handlers.AdminHandler, apiHandler
 	adminProtected.Get("/products/:id", adminHandler.ProductsShow)
 	adminProtected.Get("/products/:id/edit", adminHandler.ProductsEdit)
 	adminProtected.Put("/products/:id", adminHandler.ProductsUpdate)
+	adminProtected.Post("/products/:id", adminHandler.ProductsUpdate) // For form method override
 	adminProtected.Delete("/products/:id", adminHandler.ProductsDelete)
 
 	// Customers
@@ -166,6 +171,7 @@ func setupRoutes(app *fiber.App, adminHandler *handlers.AdminHandler, apiHandler
 	adminProtected.Get("/customers/:id", adminHandler.CustomersShow)
 	adminProtected.Get("/customers/:id/edit", adminHandler.CustomersEdit)
 	adminProtected.Put("/customers/:id", adminHandler.CustomersUpdate)
+	adminProtected.Post("/customers/:id", adminHandler.CustomersUpdate) // For form method override
 	adminProtected.Delete("/customers/:id", adminHandler.CustomersDelete)
 
 	// License Keys
@@ -175,6 +181,7 @@ func setupRoutes(app *fiber.App, adminHandler *handlers.AdminHandler, apiHandler
 	adminProtected.Get("/license-keys/:id", adminHandler.LicenseKeysShow)
 	adminProtected.Get("/license-keys/:id/edit", adminHandler.LicenseKeysEdit)
 	adminProtected.Put("/license-keys/:id", adminHandler.LicenseKeysUpdate)
+	adminProtected.Post("/license-keys/:id", adminHandler.LicenseKeysUpdate) // For form method override
 	adminProtected.Delete("/license-keys/:id", adminHandler.LicenseKeysDelete)
 	adminProtected.Post("/license-keys/:id/revoke", adminHandler.LicenseKeysRevoke)
 	adminProtected.Post("/license-keys/:id/reactivate", adminHandler.LicenseKeysReactivate)

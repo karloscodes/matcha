@@ -170,6 +170,11 @@ func (h *AdminHandler) ProductsEdit(c *fiber.Ctx) error {
 }
 
 func (h *AdminHandler) ProductsUpdate(c *fiber.Ctx) error {
+	// Handle method override for HTML forms
+	if c.Method() == "POST" && c.FormValue("_method") != "PUT" {
+		return c.Status(405).SendString("Method not allowed")
+	}
+
 	id, _ := strconv.Atoi(c.Params("id"))
 	var product models.Product
 	if err := h.db.First(&product, id).Error; err != nil {
@@ -194,8 +199,9 @@ func (h *AdminHandler) ProductsUpdate(c *fiber.Ctx) error {
 
 	if err != nil {
 		return c.Render("admin/products/edit", fiber.Map{
-			"Error":   "Failed to update product: " + err.Error(),
-			"Product": product,
+			"Error":     "Failed to update product: " + err.Error(),
+			"Product":   product,
+			"CSRFToken": c.Locals("csrf"),
 		})
 	}
 
@@ -295,6 +301,11 @@ func (h *AdminHandler) CustomersEdit(c *fiber.Ctx) error {
 }
 
 func (h *AdminHandler) CustomersUpdate(c *fiber.Ctx) error {
+	// Handle method override for HTML forms
+	if c.Method() == "POST" && c.FormValue("_method") != "PUT" {
+		return c.Status(405).SendString("Method not allowed")
+	}
+
 	id, _ := strconv.Atoi(c.Params("id"))
 	var customer models.Customer
 	if err := h.db.First(&customer, id).Error; err != nil {
@@ -325,9 +336,10 @@ func (h *AdminHandler) CustomersUpdate(c *fiber.Ctx) error {
 
 	if err != nil {
 		return c.Render("admin/customers/edit", fiber.Map{
-			"Error":    "Failed to update customer: " + err.Error(),
-			"Customer": customer,
-			"ShowNav":  true,
+			"Error":     "Failed to update customer: " + err.Error(),
+			"Customer":  customer,
+			"ShowNav":   true,
+			"CSRFToken": c.Locals("csrf"),
 		})
 	}
 
@@ -430,6 +442,11 @@ func (h *AdminHandler) LicenseKeysEdit(c *fiber.Ctx) error {
 }
 
 func (h *AdminHandler) LicenseKeysUpdate(c *fiber.Ctx) error {
+	// Handle method override for HTML forms
+	if c.Method() == "POST" && c.FormValue("_method") != "PUT" {
+		return c.Status(405).SendString("Method not allowed")
+	}
+
 	id, _ := strconv.Atoi(c.Params("id"))
 	var licenseKey models.LicenseKey
 	if err := h.db.First(&licenseKey, id).Error; err != nil {
@@ -446,8 +463,23 @@ func (h *AdminHandler) LicenseKeysUpdate(c *fiber.Ctx) error {
 
 	licenseKey.Metadata = c.FormValue("metadata")
 
-	if err := h.db.Save(&licenseKey).Error; err != nil {
-		return c.Status(500).SendString("Failed to update license key")
+	err := database.PerformWrite(h.db, func(db *gorm.DB) error {
+		return db.Save(&licenseKey).Error
+	})
+
+	if err != nil {
+		var products []models.Product
+		var customers []models.Customer
+		h.db.Find(&products)
+		h.db.Find(&customers)
+
+		return c.Render("admin/license-keys/edit", fiber.Map{
+			"Error":      "Failed to update license key: " + err.Error(),
+			"LicenseKey": licenseKey,
+			"Products":   products,
+			"Customers":  customers,
+			"CSRFToken":  c.Locals("csrf"),
+		})
 	}
 
 	return c.Redirect("/admin/license-keys/" + c.Params("id"))
