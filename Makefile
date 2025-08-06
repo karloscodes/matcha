@@ -83,6 +83,10 @@ test: ## Run tests
 	@echo "Running tests..."
 	@GO_ENV=test go test -v ./...
 
+ci-test: ## Run comprehensive CI tests (includes race detection and coverage)
+	@echo "Running comprehensive CI tests..."
+	@GO_ENV=test go test -v -race -coverprofile=coverage.out ./...
+
 test-coverage: ## Run tests with coverage
 	@echo "Running tests with coverage..."
 	@GO_ENV=test go test -v -coverprofile=coverage.out ./...
@@ -113,6 +117,12 @@ security: ## Run security scan
 		go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest; \
 	fi
 	@gosec ./...
+
+ci-full: deps build-css-prod fmt vet lint ci-test security ## Complete CI pipeline (deps, build, format, vet, lint, test, security)
+	@echo "✅ Full CI pipeline completed successfully!"
+
+ci-quick: deps build-css-prod fmt vet ci-test ## Quick CI pipeline (without lint and security)
+	@echo "✅ Quick CI pipeline completed successfully!"
 
 # Docker
 docker-build: ## Build Docker image
