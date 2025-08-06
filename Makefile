@@ -124,13 +124,6 @@ docker-run: docker-build ## Run Docker container
 	@docker run -p 8080:8080 -e GO_ENV=production matcha:latest
 
 # Production
-release: ## Build release binaries
-	@echo "Building release binaries..."
-	@if ! command -v goreleaser > /dev/null; then \
-		echo "Installing goreleaser..."; \
-		go install github.com/goreleaser/goreleaser@latest; \
-	fi
-	@goreleaser build --snapshot --rm-dist
 
 # Utilities
 clean: ## Clean build artifacts
