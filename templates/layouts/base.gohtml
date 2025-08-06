@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{if .Title}}{{.Title}} - {{end}}License Key Manager</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -24,7 +25,9 @@
     </script>
 </head>
 
-<body class="bg-gray-100 min-h-screen">
+<body class="bg-gray-100 min-h-screen" hx-boost="true">
+    <!-- Loading bar -->
+    <div id="loading-bar" class="fixed top-0 left-0 w-full h-1 bg-lime-500 z-50 transform -translate-x-full transition-transform duration-300 ease-out"></div>
     {{if .ShowNav}}
     <nav class="bg-white border-b border-gray-200">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -127,6 +130,25 @@
             if (!button && dropdown && !dropdown.classList.contains('hidden')) {
                 dropdown.classList.add('hidden');
             }
+        });
+
+        // Loading bar functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const loadingBar = document.getElementById('loading-bar');
+            
+            // Show loading bar when request starts
+            document.addEventListener('htmx:beforeRequest', function() {
+                loadingBar.classList.remove('-translate-x-full');
+                loadingBar.classList.add('translate-x-0');
+            });
+            
+            // Hide loading bar when request completes
+            document.addEventListener('htmx:afterRequest', function() {
+                setTimeout(() => {
+                    loadingBar.classList.remove('translate-x-0');
+                    loadingBar.classList.add('-translate-x-full');
+                }, 100);
+            });
         });
     </script>
 </body>
