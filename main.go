@@ -60,6 +60,7 @@ func main() {
 	productsHandler := handlers.NewProductsHandler(db)
 	customersHandler := handlers.NewCustomersHandler(db)
 	licenseKeysHandler := handlers.NewLicenseKeysHandler(db)
+	settingsHandler := handlers.NewSettingsHandler(db)
 	apiHandler := handlers.NewAPIHandler(db)
 	webhookHandler := handlers.NewWebhookHandler(db, emailService)
 
@@ -145,14 +146,14 @@ func main() {
 	app.Static("/static", "./static")
 
 	// Routes
-	setupRoutes(app, dashboardHandler, usersHandler, productsHandler, customersHandler, licenseKeysHandler, apiHandler, webhookHandler)
+	setupRoutes(app, dashboardHandler, usersHandler, productsHandler, customersHandler, licenseKeysHandler, settingsHandler, apiHandler, webhookHandler)
 
 	// Start server
 	log.Printf("Server starting on port %s in %s environment", cfg.Port, cfg.Environment)
 	log.Fatal(app.Listen(":" + cfg.Port))
 }
 
-func setupRoutes(app *fiber.App, dashboardHandler *handlers.DashboardHandler, usersHandler *handlers.UsersHandler, productsHandler *handlers.ProductsHandler, customersHandler *handlers.CustomersHandler, licenseKeysHandler *handlers.LicenseKeysHandler, apiHandler *handlers.APIHandler, webhookHandler *handlers.WebhookHandler) {
+func setupRoutes(app *fiber.App, dashboardHandler *handlers.DashboardHandler, usersHandler *handlers.UsersHandler, productsHandler *handlers.ProductsHandler, customersHandler *handlers.CustomersHandler, licenseKeysHandler *handlers.LicenseKeysHandler, settingsHandler *handlers.SettingsHandler, apiHandler *handlers.APIHandler, webhookHandler *handlers.WebhookHandler) {
 	// Redirect root to admin dashboard
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.Redirect("/admin/")
@@ -204,7 +205,16 @@ func setupRoutes(app *fiber.App, dashboardHandler *handlers.DashboardHandler, us
 	adminProtected.Post("/license-keys/:id/reactivate", licenseKeysHandler.Reactivate)
 	adminProtected.Post("/license-keys/:id/send-email", licenseKeysHandler.SendEmail)
 
-	// Email Configuration
+	// Settings
+	adminProtected.Get("/settings/email", settingsHandler.ShowEmailSettings)
+	adminProtected.Post("/settings/email", settingsHandler.CreateEmailSettings)
+	adminProtected.Post("/settings/email/:id", settingsHandler.UpdateEmailSettings)
+	adminProtected.Put("/settings/email/:id", settingsHandler.UpdateEmailSettings)
+	adminProtected.Post("/settings/email/:id/activate", settingsHandler.ActivateEmailSettings)
+	adminProtected.Delete("/settings/email/:id", settingsHandler.DeleteEmailSettings)
+	adminProtected.Post("/settings/email/test", settingsHandler.TestEmailSettings)
+
+	// Email Configuration (legacy - keeping for compatibility)
 	adminProtected.Get("/email-config", dashboardHandler.EmailConfigPage)
 	adminProtected.Post("/email-config", dashboardHandler.EmailConfigUpdate)
 	adminProtected.Post("/email-config/test", dashboardHandler.EmailTestSend)
