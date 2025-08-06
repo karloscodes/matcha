@@ -66,6 +66,10 @@ deps: ## Download and install dependencies
 	@echo "Installing dependencies..."
 	@go mod download
 	@go mod tidy
+	@if [ ! -d "node_modules" ]; then \
+		echo "Installing npm dependencies..."; \
+		npm install; \
+	fi
 
 # Database
 db-reset: ## Reset the database (removes existing data)
@@ -114,7 +118,7 @@ security: ## Run security scan
 	@echo "Running security scan..."
 	@if ! command -v gosec > /dev/null; then \
 		echo "Installing gosec..."; \
-		go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest; \
+		go install github.com/securecodewarrior/gosec/v2/cmd/gosec@v2.18.2; \
 	fi
 	@gosec ./...
 

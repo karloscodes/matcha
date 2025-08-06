@@ -114,7 +114,7 @@ func (es *EmailService) sendWithTLS(addr string, auth smtp.Auth, from string, to
 	if err != nil {
 		return err
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	if err = client.StartTLS(&tls.Config{ServerName: strings.Split(addr, ":")[0]}); err != nil {
 		return err
@@ -138,7 +138,7 @@ func (es *EmailService) sendWithTLS(addr string, auth smtp.Auth, from string, to
 	if err != nil {
 		return err
 	}
-	defer writer.Close()
+	defer func() { _ = writer.Close() }()
 
 	_, err = writer.Write(msg)
 	return err
@@ -154,13 +154,13 @@ func (es *EmailService) sendWithSSL(addr string, auth smtp.Auth, from string, to
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	client, err := smtp.NewClient(conn, strings.Split(addr, ":")[0])
 	if err != nil {
 		return err
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	if err = client.Auth(auth); err != nil {
 		return err
@@ -180,7 +180,7 @@ func (es *EmailService) sendWithSSL(addr string, auth smtp.Auth, from string, to
 	if err != nil {
 		return err
 	}
-	defer writer.Close()
+	defer func() { _ = writer.Close() }()
 
 	_, err = writer.Write(msg)
 	return err
