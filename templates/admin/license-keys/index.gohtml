@@ -43,7 +43,7 @@
           <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{.Product.Name}}</td>
           <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{.Customer.Email}}</td>
           <td class="px-6 py-4 whitespace-nowrap">
-            <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full {{if eq .Status "active"}}bg-green-100 text-green-800{{else if eq .Status "expired"}}bg-red-100 text-red-800{{else}}bg-gray-100 text-gray-800{{end}}">
+            <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full {{if eq .Status "active"}}bg-lime-100 text-lime-800{{else if eq .Status "expired"}}bg-yellow-100 text-yellow-800{{else}}bg-gray-100 text-gray-800{{end}}">
               {{.Status}}
             </span>
           </td>
@@ -52,7 +52,7 @@
           </td>
           <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{.CreatedAt.Format "01/02/2006"}}</td>
           <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-            <a href="/admin/license-keys/{{.ID}}" class="text-blue-600 hover:text-blue-900 mr-3">View</a>
+            <a href="/admin/license-keys/{{.ID}}" class="text-gray-600 hover:text-blue-900 mr-3">View</a>
             <a href="/admin/license-keys/{{.ID}}/edit" class="text-yellow-600 hover:text-yellow-900 mr-3">Edit</a>
             {{if eq .Status "active"}}
             <button onclick="revokeLicense({{.ID}})" class="text-red-600 hover:text-red-900">Revoke</button>

@@ -36,7 +36,7 @@
           <td class="px-6 py-4 whitespace-nowrap">
             <div class="flex items-center">
               <div class="flex-shrink-0 h-10 w-10">
-                <div class="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+                <div class="h-10 w-10 rounded-full bg-lime-100 flex items-center justify-center">
                   <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                       d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
@@ -50,12 +50,12 @@
             </div>
           </td>
           <td class="px-6 py-4 whitespace-nowrap">
-            <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+            <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-blue-800">
               {{len .LicenseKeys}} keys
             </span>
           </td>
           <td class="px-6 py-4 whitespace-nowrap">
-            <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+            <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-lime-100 text-lime-800">
               Active
             </span>
           </td>
@@ -63,7 +63,7 @@
             {{.CreatedAt.Format "01/02/2006"}}
           </td>
           <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-            <a href="/admin/products/{{.ID}}" class="text-blue-600 hover:text-blue-900 mr-3">View</a>
+            <a href="/admin/products/{{.ID}}" class="text-gray-600 hover:text-blue-900 mr-3">View</a>
             <a href="/admin/products/{{.ID}}/edit" class="text-yellow-600 hover:text-yellow-900">Edit</a>
           </td>
         </tr>

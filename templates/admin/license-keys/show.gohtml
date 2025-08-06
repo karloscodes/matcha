@@ -42,7 +42,7 @@
         {{else}}
         <form method="POST" action="/admin/license-keys/{{.LicenseKey.ID}}/reactivate" style="display: inline;">
           <button type="submit"
-            class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
+            class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-lime-600 hover:bg-lime-700">
             Reactivate Key
           </button>
         </form>
@@ -67,7 +67,7 @@
       <div>
         <dt class="text-sm font-medium text-gray-500">Status</dt>
         <dd class="mt-1">
-          <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full {{if eq .LicenseKey.Status "active"}}bg-green-100 text-green-800{{else if eq .LicenseKey.Status "expired"}}bg-red-100 text-red-800{{else}}bg-gray-100 text-gray-800{{end}}">
+          <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full {{if eq .LicenseKey.Status "active"}}bg-lime-100 text-lime-800{{else if eq .LicenseKey.Status "expired"}}bg-yellow-100 text-yellow-800{{else}}bg-gray-100 text-gray-800{{end}}">
             {{.LicenseKey.Status}}
           </span>
         </dd>

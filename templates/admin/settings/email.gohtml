@@ -20,14 +20,14 @@
 </div>
 
 {{if .Error}}
-<div class="mb-6 border border-red-300 bg-red-50 px-4 py-3 rounded">
-  <span class="text-red-700">{{.Error}}</span>
+<div class="mb-6 border border-yellow-300 bg-yellow-50 px-4 py-3 rounded">
+  <span class="text-yellow-800">{{.Error}}</span>
 </div>
 {{end}}
 
 {{if .Success}}
-<div class="mb-6 border border-green-300 bg-green-50 px-4 py-3 rounded">
-  <span class="text-green-700">{{.Success}}</span>
+<div class="mb-6 border border-lime-300 bg-lime-50 px-4 py-3 rounded">
+  <span class="text-lime-800">{{.Success}}</span>
 </div>
 {{end}}
 
@@ -99,20 +99,20 @@
             <label for="sendgrid_api_key" class="block text-sm font-medium text-gray-700 mb-1">SendGrid API Key</label>
             <input type="password" id="sendgrid_api_key" name="smtp_password"
               placeholder="SG.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-              class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 font-mono text-sm">
+              class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-lime-400 focus:border-lime-400 font-mono text-sm">
           </div>
           <div>
             <label for="sendgrid_from_email" class="block text-sm font-medium text-gray-700 mb-1">From Email</label>
             <input type="email" id="sendgrid_from_email" name="from_email"
               placeholder="noreply@yourapp.com"
-              class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400">
+              class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-lime-400 focus:border-lime-400">
           </div>
         </div>
         <div>
           <label for="sendgrid_from_name" class="block text-sm font-medium text-gray-700 mb-1">From Name</label>
           <input type="text" id="sendgrid_from_name" name="from_name"
             placeholder="Your App Name"
-            class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400">
+            class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-lime-400 focus:border-lime-400">
         </div>
         <input type="hidden" name="smtp_host" value="api.sendgrid.com">
         <input type="hidden" name="smtp_port" value="443">
@@ -127,13 +127,13 @@
             <label for="mailgun_api_key" class="block text-sm font-medium text-gray-700 mb-1">Mailgun API Key</label>
             <input type="password" id="mailgun_api_key" name="smtp_password"
               placeholder="key-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-              class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 font-mono text-sm">
+              class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-lime-400 focus:border-lime-400 font-mono text-sm">
           </div>
           <div>
             <label for="mailgun_domain" class="block text-sm font-medium text-gray-700 mb-1">Domain</label>
             <input type="text" id="mailgun_domain" name="smtp_username"
               placeholder="mg.yourapp.com"
-              class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 font-mono text-sm">
+              class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-lime-400 focus:border-lime-400 font-mono text-sm">
           </div>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -141,13 +141,13 @@
             <label for="mailgun_from_email" class="block text-sm font-medium text-gray-700 mb-1">From Email</label>
             <input type="email" id="mailgun_from_email" name="from_email"
               placeholder="noreply@yourapp.com"
-              class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400">
+              class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-lime-400 focus:border-lime-400">
           </div>
           <div>
             <label for="mailgun_from_name" class="block text-sm font-medium text-gray-700 mb-1">From Name</label>
             <input type="text" id="mailgun_from_name" name="from_name"
               placeholder="Your App Name"
-              class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400">
+              class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-lime-400 focus:border-lime-400">
           </div>
         </div>
         <input type="hidden" name="smtp_host" value="api.mailgun.net">
@@ -162,13 +162,13 @@
             <label for="custom_smtp_host" class="block text-sm font-medium text-gray-700 mb-1">SMTP Host</label>
             <input type="text" id="custom_smtp_host" name="smtp_host"
               placeholder="smtp.gmail.com"
-              class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 font-mono text-sm">
+              class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-lime-400 focus:border-lime-400 font-mono text-sm">
           </div>
           <div>
             <label for="custom_smtp_port" class="block text-sm font-medium text-gray-700 mb-1">SMTP Port</label>
             <input type="number" id="custom_smtp_port" name="smtp_port"
               placeholder="587"
-              class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400">
+              class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-lime-400 focus:border-lime-400">
           </div>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -176,13 +176,13 @@
             <label for="custom_smtp_username" class="block text-sm font-medium text-gray-700 mb-1">Username</label>
             <input type="text" id="custom_smtp_username" name="smtp_username"
               placeholder="your-email@gmail.com"
-              class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400">
+              class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-lime-400 focus:border-lime-400">
           </div>
           <div>
             <label for="custom_smtp_password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
             <input type="password" id="custom_smtp_password" name="smtp_password"
               placeholder="app-specific-password"
-              class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400">
+              class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-lime-400 focus:border-lime-400">
           </div>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -190,19 +190,19 @@
             <label for="custom_from_email" class="block text-sm font-medium text-gray-700 mb-1">From Email</label>
             <input type="email" id="custom_from_email" name="from_email"
               placeholder="noreply@yourapp.com"
-              class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400">
+              class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-lime-400 focus:border-lime-400">
           </div>
           <div>
             <label for="custom_from_name" class="block text-sm font-medium text-gray-700 mb-1">From Name</label>
             <input type="text" id="custom_from_name" name="from_name"
               placeholder="Your App Name"
-              class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400">
+              class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-lime-400 focus:border-lime-400">
           </div>
         </div>
         <div>
           <label for="custom_smtp_encryption" class="block text-sm font-medium text-gray-700 mb-1">Encryption</label>
           <select id="custom_smtp_encryption" name="smtp_encryption"
-            class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400">
+            class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-lime-400 focus:border-lime-400">
             <option value="tls">TLS</option>
             <option value="ssl">SSL</option>
             <option value="none">None</option>
@@ -237,7 +237,7 @@
         <label for="test_email" class="block text-sm font-medium text-gray-700 mb-1">Test Email Address</label>
         <input type="email" id="test_email" name="test_email" required
           placeholder="test@example.com"
-          class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400">
+          class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-lime-400 focus:border-lime-400">
       </div>
       <div class="flex items-end">
         <button type="submit" class="px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">
@@ -257,7 +257,7 @@
   <div class="divide-y divide-gray-200">
     {{if .EmailSettings}}
       {{range .EmailSettings}}
-      <div class="p-6 {{if .IsActive}}bg-blue-50{{end}}">
+      <div class="p-6 {{if .IsActive}}bg-lime-50{{end}}">
         <div class="flex justify-between items-start">
           <div class="space-y-2">
             <div class="flex items-center space-x-3">
@@ -314,7 +314,7 @@ function selectProvider(provider) {
 
   // Add selection to clicked provider
   const element = document.getElementById('provider-' + provider);
-  element.classList.add('border-gray-800', 'bg-gray-100');
+  element.classList.add('border-lime-600', 'bg-lime-100');
   element.classList.remove('border-gray-300');
 
   selectedProvider = provider;
