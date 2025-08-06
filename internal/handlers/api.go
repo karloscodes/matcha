@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"license-key-manager/internal/models"
+	"matcha/internal/models"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"

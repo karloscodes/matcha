@@ -7,8 +7,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 
-	"license-key-manager/internal/database"
-	"license-key-manager/internal/models"
+	"matcha/internal/database"
+	"matcha/internal/models"
 )
 
 type ProductsHandler struct {

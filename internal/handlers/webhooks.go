@@ -2,9 +2,9 @@ package handlers
 
 import (
 	"encoding/json"
-	"license-key-manager/internal/models"
-	"license-key-manager/internal/services"
 	"log"
+	"matcha/internal/models"
+	"matcha/internal/services"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"

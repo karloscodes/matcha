@@ -6,8 +6,8 @@ import (
 	"net/smtp"
 	"strings"
 
-	"license-key-manager/internal/config"
-	"license-key-manager/internal/models"
+	"matcha/internal/config"
+	"matcha/internal/models"
 
 	"gorm.io/gorm"
 )

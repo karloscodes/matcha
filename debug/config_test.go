@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"license-key-manager/internal/config"
+	"matcha/internal/config"
 )
 
 func main() {

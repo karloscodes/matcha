@@ -8,9 +8,9 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
-	"license-key-manager/internal/config"
-	"license-key-manager/internal/middleware"
-	"license-key-manager/internal/models"
+	"matcha/internal/config"
+	"matcha/internal/middleware"
+	"matcha/internal/models"
 )
 
 func SetupTestDB(t *testing.T) *gorm.DB {

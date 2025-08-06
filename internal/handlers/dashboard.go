@@ -8,9 +8,9 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 
-	"license-key-manager/internal/config"
-	"license-key-manager/internal/models"
-	"license-key-manager/internal/services"
+	"matcha/internal/config"
+	"matcha/internal/models"
+	"matcha/internal/services"
 )
 
 type DashboardHandler struct {

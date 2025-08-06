@@ -1,4 +1,4 @@
-module license-key-manager
+module matcha
 
 go 1.23.0
 

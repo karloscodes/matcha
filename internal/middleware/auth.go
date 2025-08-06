@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"time"
 
-	"license-key-manager/internal/config"
-	"license-key-manager/internal/models"
+	"matcha/internal/config"
+	"matcha/internal/models"
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"

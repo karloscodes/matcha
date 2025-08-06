@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
-	"license-key-manager/internal/models"
-	"license-key-manager/internal/testutils"
+	"matcha/internal/models"
+	"matcha/internal/testutils"
 )
 
 func TestDashboardHandler_Dashboard(t *testing.T) {

@@ -1,24 +1,34 @@
 package main
 
 import (
+	"embed"
+	"io/fs"
 	"log"
+	"net/http"
 	"strings"
 
-	"license-key-manager/internal/config"
-	"license-key-manager/internal/database"
-	"license-key-manager/internal/handlers"
-	"license-key-manager/internal/middleware"
-	"license-key-manager/internal/models"
-	"license-key-manager/internal/services"
+	"matcha/internal/config"
+	"matcha/internal/database"
+	"matcha/internal/handlers"
+	"matcha/internal/middleware"
+	"matcha/internal/models"
+	"matcha/internal/services"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/filesystem"
 	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	htmlEngine "github.com/gofiber/template/html/v2"
 	"github.com/joho/godotenv"
 )
+
+//go:embed templates/*
+var templateFS embed.FS
+
+//go:embed static/*
+var staticFS embed.FS
 
 func main() {
 	// Load environment variables
@@ -64,8 +74,8 @@ func main() {
 	apiHandler := handlers.NewAPIHandler(db)
 	webhookHandler := handlers.NewWebhookHandler(db, emailService)
 
-	// Initialize template engine
-	engine := htmlEngine.New("./templates", ".gohtml")
+	// Initialize template engine with embedded templates
+	engine := htmlEngine.NewFileSystem(http.FS(templateFS), ".gohtml")
 
 	// Add template functions
 	engine.AddFunc("dict", func(values ...interface{}) map[string]interface{} {
@@ -165,8 +175,11 @@ func main() {
 		Expiration: 60,  // 1 minute window
 	}))
 
-	// Static files
-	app.Static("/static", "./static")
+	// Static files from embedded filesystem
+	staticSubFS, _ := fs.Sub(staticFS, "static")
+	app.Use("/static", filesystem.New(filesystem.Config{
+		Root: http.FS(staticSubFS),
+	}))
 
 	// Routes
 	setupRoutes(app, dashboardHandler, usersHandler, productsHandler, customersHandler, licenseKeysHandler, settingsHandler, apiHandler, webhookHandler)

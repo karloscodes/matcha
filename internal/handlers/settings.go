@@ -6,9 +6,9 @@ import (
 	"log"
 	"strconv"
 
-	"license-key-manager/internal/config"
-	"license-key-manager/internal/models"
-	"license-key-manager/internal/services"
+	"matcha/internal/config"
+	"matcha/internal/models"
+	"matcha/internal/services"
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"

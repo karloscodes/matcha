@@ -74,7 +74,7 @@ deps: ## Download and install dependencies
 # Database
 db-reset: ## Reset the database (removes existing data)
 	@echo "Resetting database..."
-	@rm -f db/license_manager.db db/test_license_manager.db
+	@rm -f db/matcha.db db/test_matcha.db
 
 db-migrate: ## Run database migrations
 	@echo "Running database migrations..."
