@@ -30,7 +30,7 @@ func (es *EmailService) SendTestEmail(toEmail string) error {
 		return fmt.Errorf("no active email settings found: %w", err)
 	}
 
-	subject := "Test Email from License Key Manager"
+	subject := "Test Email from Matcha"
 	body := `
 <html>
 <body>
@@ -66,7 +66,7 @@ func (es *EmailService) SendLicenseKey(toEmail, licenseKey, productName string) 
 	<p>If you have any questions or need support, please don't hesitate to contact us.</p>
 	
 	<p>Best regards,<br>
-	The License Key Manager Team</p>
+	The Matcha Team</p>
 </body>
 </html>`, productName, licenseKey)
 
@@ -82,7 +82,7 @@ func (es *EmailService) sendEmail(settings *models.EmailSettings, to, subject, b
 
 	fromName := settings.FromName
 	if fromName == "" {
-		fromName = "License Key Manager"
+		fromName = "Matcha"
 	}
 
 	msg := []string{
@@ -221,7 +221,7 @@ func (es *EmailService) MigrateConfigToDatabase() error {
 		SMTPPassword:   "",
 		SMTPEncryption: "tls",
 		FromEmail:      "",
-		FromName:       "License Key Manager",
+		FromName:       "Matcha",
 		IsActive:       false, // Require manual activation
 	}
 

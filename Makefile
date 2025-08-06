@@ -1,9 +1,9 @@
-# License Key Manager - Makefile
+# Matcha - Makefile
 .PHONY: help dev build run test clean docker-build docker-run release deps fmt lint vet security
 
 # Default target
 help: ## Show this help message
-	@echo "License Key Manager - Available commands:"
+	@echo "Matcha - Available commands:"
 	@echo ""
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
@@ -29,12 +29,12 @@ watch-css: ## Watch and rebuild CSS on changes
 	@npm run build-css
 
 run: ## Run the application
-	@echo "Starting License Key Manager..."
+	@echo "Starting Matcha..."
 	@GO_ENV=development go run main.go
 
 build: ## Build the application
-	@echo "Building License Key Manager..."
-	@go build -ldflags="-s -w" -o bin/license-manager main.go
+	@echo "Building Matcha..."
+	@go build -ldflags="-s -w" -o bin/matcha main.go
 
 # Dependencies
 deps: ## Download and install dependencies
@@ -92,11 +92,11 @@ security: ## Run security scan
 # Docker
 docker-build: ## Build Docker image
 	@echo "Building Docker image..."
-	@docker build -t license-key-manager:latest .
+	@docker build -t matcha:latest .
 
 docker-run: docker-build ## Run Docker container
 	@echo "Running Docker container..."
-	@docker run -p 8080:8080 -e GO_ENV=production license-key-manager:latest
+	@docker run -p 8080:8080 -e GO_ENV=production matcha:latest
 
 # Production
 release: ## Build release binaries
@@ -122,11 +122,11 @@ install-tools: ## Install development tools
 # Production deployment helpers
 prod-build: ## Build for production
 	@echo "Building for production..."
-	@GO_ENV=production go build -ldflags="-s -w -X main.version=$(shell git describe --tags --always)" -o bin/license-manager-prod main.go
+	@GO_ENV=production go build -ldflags="-s -w -X main.version=$(shell git describe --tags --always)" -o bin/matcha-prod main.go
 
 prod-run: prod-build ## Run production build
 	@echo "Starting production server..."
-	@GO_ENV=production ./bin/license-manager-prod
+	@GO_ENV=production ./bin/matcha-prod
 
 # Version info
 version: ## Show version information

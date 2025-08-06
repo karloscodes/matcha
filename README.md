@@ -1,6 +1,8 @@
-# License Key Manager - Go Version
+# Matcha 🍵
 
-A self-hosted license key management system similar to Gumroad's license functionality, built with Go, GoFiber, GORM, and SQLite.
+An **open-source** self-hosted license key management system built with Go, GoFiber, GORM, and SQLite.
+
+> **🎉 Open Source & Free**: This project is completely free and open-source under the MIT License. You can use it commercially, modify it, and distribute it without restrictions.
 
 ## Features
 
@@ -10,22 +12,26 @@ A self-hosted license key management system similar to Gumroad's license functio
 - **Webhook Integration**: Support for Stripe, Gumroad, and PayPal webhooks
 - **Email Delivery**: Send license keys via Mailgun, SendGrid, or SMTP
 - **Admin Interface**: Web-based administration panel
-- **API**: RESTful API compatible with Gumroad's license verification
+- **API**: RESTful API
 - **High Performance**: Built with GoFiber for fast HTTP handling
 
 ## Quick Start with Docker
 
 1. Clone the repository
 2. Copy environment variables:
+
    ```bash
    cp .env.example .env
    ```
+
 3. Configure email settings in `.env`
 4. Start with Docker Compose:
+
    ```bash
    docker-compose up -d
    ```
-5. Access the admin panel at http://localhost:3001
+
+5. Access the admin panel at <http://localhost:3001>
    - Username: `admin`
    - Password: `admin123`
 
@@ -76,18 +82,40 @@ See `.env.example` for all configuration options.
 - **Authentication**: Secure sessions
 - **Rate Limiting**: Built-in rate limiting
 
+## License
+
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+
+### Why Open Source?
+
+Matcha is open-source because we believe:
+
+- 🔓 **Transparency**: You should know exactly how your license management works
+- 🚀 **Community**: Open-source projects improve faster with community contributions
+- 💰 **Cost-Effective**: No licensing fees - use it for free, forever
+- 🔧 **Customizable**: Modify it to fit your specific needs
+- 🤝 **Trust**: Open code builds trust with your customers
+
+## Contributing
+
+We welcome contributions! Here's how you can help:
+
+1. 🐛 **Report Bugs**: [Create an issue](https://github.com/yourusername/matcha/issues)
+2. 💡 **Suggest Features**: [Start a discussion](https://github.com/yourusername/matcha/discussions)
+3. 🛠️ **Submit Code**: Fork, code, and create a pull request
+4. 📖 **Improve Docs**: Help make the documentation better
+5. ⭐ **Star the Repo**: Show your support!
+
+### Development Guidelines
+
+- Follow Go best practices and conventions
+- Add tests for new features
+- Update documentation when needed
+- Keep commits clean and descriptive
+
 ## Production Deployment
 
-1. Set production environment variables
-2. Configure email service
-3. Set secure `SECRET_KEY`
-4. Use Docker or build binary for your platform
-5. Configure reverse proxy (nginx/caddy) if needed
+> ⚠️ **Note**: While functional, this project is still in active development. Test thoroughly before production use.
 
-## Performance
+Deployment guides coming soon...
 
-The Go version typically offers:
-- Faster startup times
-- Lower memory usage
-- Higher throughput for API requests
-- Better concurrent request handling
