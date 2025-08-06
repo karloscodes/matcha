@@ -86,11 +86,11 @@ func TestProductsHandler_Create(t *testing.T) {
 		{
 			name: "should create product successfully",
 			formData: map[string]string{
-				"name":                      "Test Product",
-				"description":               "Test Description",
-				"version":                   "1.0.0",
-				"default_expiration_days":   "365",
-				"default_usage_limit":       "1",
+				"name":                    "Test Product",
+				"description":             "Test Description",
+				"version":                 "1.0.0",
+				"default_expiration_days": "365",
+				"default_usage_limit":     "1",
 			},
 			expectedStatus: 302,
 			expectedResult: "/admin/products",
@@ -108,11 +108,11 @@ func TestProductsHandler_Create(t *testing.T) {
 		{
 			name: "should handle invalid expiration days",
 			formData: map[string]string{
-				"name":                      "Test Product",
-				"description":               "Test Description",
-				"version":                   "1.0.0",
-				"default_expiration_days":   "invalid",
-				"default_usage_limit":       "1",
+				"name":                    "Test Product",
+				"description":             "Test Description",
+				"version":                 "1.0.0",
+				"default_expiration_days": "invalid",
+				"default_usage_limit":     "1",
 			},
 			expectedStatus: 302,
 			expectedResult: "/admin/products",
@@ -136,12 +136,12 @@ func TestProductsHandler_Create(t *testing.T) {
 
 			req := httptest.NewRequest("POST", "/test", strings.NewReader(form.Encode()))
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-			
+
 			resp, err := app.Test(req)
 			require.NoError(t, err)
 
 			assert.Equal(t, tt.expectedStatus, resp.StatusCode)
-			
+
 			if tt.expectedResult != "" {
 				location := resp.Header.Get("Location")
 				assert.Equal(t, tt.expectedResult, location)
@@ -193,7 +193,7 @@ func TestProductsHandler_Show(t *testing.T) {
 			handler := NewProductsHandler(db)
 
 			productID := tt.setupData(db)
-			
+
 			app.Get("/test/:id", testutils.MockRender(handler.Show))
 
 			req := httptest.NewRequest("GET", "/test/"+strconv.Itoa(int(productID)), nil)
@@ -240,7 +240,7 @@ func TestProductsHandler_Edit(t *testing.T) {
 			handler := NewProductsHandler(db)
 
 			productID := tt.setupData(db)
-			
+
 			app.Get("/test/:id", testutils.MockRender(handler.Edit))
 
 			req := httptest.NewRequest("GET", "/test/"+strconv.Itoa(int(productID)), nil)
@@ -272,12 +272,12 @@ func TestProductsHandler_Update(t *testing.T) {
 				return product.ID
 			},
 			formData: map[string]string{
-				"_method":                   "PUT",
-				"name":                      "Updated Product",
-				"description":               "Updated Description",
-				"version":                   "2.0.0",
-				"default_expiration_days":   "730",
-				"default_usage_limit":       "5",
+				"_method":                 "PUT",
+				"name":                    "Updated Product",
+				"description":             "Updated Description",
+				"version":                 "2.0.0",
+				"default_expiration_days": "730",
+				"default_usage_limit":     "5",
 			},
 			expectedStatus: 302,
 		},
@@ -352,7 +352,7 @@ func TestProductsHandler_Update(t *testing.T) {
 
 			req := httptest.NewRequest("POST", "/test/"+strconv.Itoa(int(productID)), strings.NewReader(form.Encode()))
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-			
+
 			resp, err := app.Test(req)
 			require.NoError(t, err)
 
@@ -398,7 +398,7 @@ func TestProductsHandler_Delete(t *testing.T) {
 			handler := NewProductsHandler(db)
 
 			productID := tt.setupData(db)
-			
+
 			app.Delete("/test/:id", func(c *fiber.Ctx) error {
 				return handler.Delete(c)
 			})
@@ -422,7 +422,7 @@ func TestProductsHandler_Delete(t *testing.T) {
 func TestNewProductsHandler(t *testing.T) {
 	db := testutils.SetupTestDB(t)
 	handler := NewProductsHandler(db)
-	
+
 	assert.NotNil(t, handler)
 	assert.Equal(t, db, handler.db)
 }

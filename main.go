@@ -94,7 +94,7 @@ func main() {
 			if e, ok := err.(*fiber.Error); ok {
 				code = e.Code
 			}
-			
+
 			switch code {
 			case 404:
 				return c.Status(404).Render("errors/404", fiber.Map{
@@ -102,7 +102,7 @@ func main() {
 				})
 			case 500:
 				return c.Status(500).Render("errors/500", fiber.Map{
-					"Title": "Server Error", 
+					"Title": "Server Error",
 					"Error": err.Error(),
 				})
 			default:
@@ -239,7 +239,7 @@ func setupRoutes(app *fiber.App, dashboardHandler *handlers.DashboardHandler, us
 	admin.Get("/email-config", middleware.RequireAuth, dashboardHandler.EmailConfigPage)
 	admin.Post("/email-config", middleware.RequireAuth, dashboardHandler.EmailConfigUpdate)
 	admin.Post("/email-config/test", middleware.RequireAuth, dashboardHandler.EmailTestSend)
-	
+
 	// Catch-all for non-existent admin routes - must be last in admin group
 	admin.All("/*", func(c *fiber.Ctx) error {
 		return c.Status(404).Render("errors/404", fiber.Map{
@@ -255,8 +255,7 @@ func setupRoutes(app *fiber.App, dashboardHandler *handlers.DashboardHandler, us
 	api.Post("/webhooks/stripe", webhookHandler.StripeWebhook)
 	api.Post("/webhooks/gumroad", webhookHandler.GumroadWebhook)
 	api.Post("/webhooks/paypal", webhookHandler.PayPalWebhook)
-	
-	
+
 	// 404 handler - must be last
 	app.Use(func(c *fiber.Ctx) error {
 		return c.Status(404).Render("errors/404", fiber.Map{

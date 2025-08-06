@@ -102,12 +102,12 @@ func TestRoutes_Dashboard(t *testing.T) {
 
 func TestRoutes_Products(t *testing.T) {
 	app, db := setupTestRoutes()
-	
+
 	// Create a test product for Show and Edit tests
 	product := models.Product{
 		Name:                  "Test Product",
-		Description:          "Test Description", 
-		Version:              "1.0.0",
+		Description:           "Test Description",
+		Version:               "1.0.0",
 		DefaultExpirationDays: 365,
 		DefaultUsageLimit:     1,
 	}
@@ -120,7 +120,7 @@ func TestRoutes_Products(t *testing.T) {
 	}{
 		{"GET", "/admin/products", 200},
 		{"GET", "/admin/products/new", 200},
-		{"GET", "/admin/products/" + strconv.Itoa(int(product.ID)), 200}, // Existing product should return 200
+		{"GET", "/admin/products/" + strconv.Itoa(int(product.ID)), 200},           // Existing product should return 200
 		{"GET", "/admin/products/" + strconv.Itoa(int(product.ID)) + "/edit", 200}, // Existing product should return 200
 	}
 
@@ -136,7 +136,7 @@ func TestRoutes_Products(t *testing.T) {
 
 func TestRoutes_Customers(t *testing.T) {
 	app, db := setupTestRoutes()
-	
+
 	// Create a test customer for Show and Edit tests
 	customer := models.Customer{
 		Name:      "John Doe",
@@ -153,7 +153,7 @@ func TestRoutes_Customers(t *testing.T) {
 	}{
 		{"GET", "/admin/customers", 200},
 		{"GET", "/admin/customers/new", 200},
-		{"GET", "/admin/customers/" + strconv.Itoa(int(customer.ID)), 200}, // Existing customer should return 200
+		{"GET", "/admin/customers/" + strconv.Itoa(int(customer.ID)), 200},           // Existing customer should return 200
 		{"GET", "/admin/customers/" + strconv.Itoa(int(customer.ID)) + "/edit", 200}, // Existing customer should return 200
 	}
 
@@ -169,17 +169,17 @@ func TestRoutes_Customers(t *testing.T) {
 
 func TestRoutes_LicenseKeys(t *testing.T) {
 	app, db := setupTestRoutes()
-	
+
 	// Create test data for license key tests (product and customer first)
 	product := models.Product{
 		Name:                  "Test Product",
-		Description:          "Test Description",
-		Version:              "1.0.0", 
+		Description:           "Test Description",
+		Version:               "1.0.0",
 		DefaultExpirationDays: 365,
 		DefaultUsageLimit:     1,
 	}
 	db.Create(&product)
-	
+
 	customer := models.Customer{
 		Name:      "Jane Doe",
 		Email:     "jane@example.com",
@@ -187,7 +187,7 @@ func TestRoutes_LicenseKeys(t *testing.T) {
 		LastName:  "Doe",
 	}
 	db.Create(&customer)
-	
+
 	// Create a test license key for Show and Edit tests
 	licenseKey, _ := product.GenerateLicenseKeyFor(db, &customer)
 
@@ -198,7 +198,7 @@ func TestRoutes_LicenseKeys(t *testing.T) {
 	}{
 		{"GET", "/admin/license-keys", 200},
 		{"GET", "/admin/license-keys/new", 200},
-		{"GET", "/admin/license-keys/" + strconv.Itoa(int(licenseKey.ID)), 200}, // Existing license key should return 200
+		{"GET", "/admin/license-keys/" + strconv.Itoa(int(licenseKey.ID)), 200},           // Existing license key should return 200
 		{"GET", "/admin/license-keys/" + strconv.Itoa(int(licenseKey.ID)) + "/edit", 200}, // Existing license key should return 200
 	}
 

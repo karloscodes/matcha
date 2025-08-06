@@ -51,7 +51,7 @@ func PerformWrite(db *gorm.DB, operation func(*gorm.DB) error) error {
 			if delay > maxDelay {
 				delay = maxDelay
 			}
-			
+
 			// Add some jitter (±25% of the delay)
 			jitterFactor := (float64(time.Now().UnixNano()%1000)/1000.0 - 0.5) * 0.5 // -0.25 to +0.25
 			jitter := time.Duration(float64(delay) * jitterFactor)
@@ -72,12 +72,12 @@ func isLockError(err error) bool {
 	if err == nil {
 		return false
 	}
-	
+
 	errStr := err.Error()
 	return contains(errStr, "database is locked") ||
-		   contains(errStr, "SQLITE_BUSY") ||
-		   contains(errStr, "database table is locked") ||
-		   contains(errStr, "cannot start a transaction within a transaction")
+		contains(errStr, "SQLITE_BUSY") ||
+		contains(errStr, "database table is locked") ||
+		contains(errStr, "cannot start a transaction within a transaction")
 }
 
 // contains is a simple string contains check

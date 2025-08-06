@@ -41,9 +41,9 @@ func (h *ProductsHandler) New(c *fiber.Ctx) error {
 
 func (h *ProductsHandler) Create(c *fiber.Ctx) error {
 	log.Printf("ProductsCreate: Method=%s, Path=%s", c.Method(), c.Path())
-	log.Printf("ProductsCreate: Form values - name=%s, description=%s, version=%s", 
+	log.Printf("ProductsCreate: Form values - name=%s, description=%s, version=%s",
 		c.FormValue("name"), c.FormValue("description"), c.FormValue("version"))
-	
+
 	product := models.Product{
 		Name:        c.FormValue("name"),
 		Description: c.FormValue("description"),

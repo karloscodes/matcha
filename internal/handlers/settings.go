@@ -183,7 +183,7 @@ func (h *SettingsHandler) TestEmailSettings(c *fiber.Ctx) error {
 	if testEmail == "" {
 		var emailSettings []models.EmailSettings
 		h.db.Find(&emailSettings)
-		
+
 		return c.Render("layouts/base", fiber.Map{
 			"ShowNav":       true,
 			"PageType":      "email-settings",
@@ -198,7 +198,7 @@ func (h *SettingsHandler) TestEmailSettings(c *fiber.Ctx) error {
 	if err != nil {
 		var emailSettings []models.EmailSettings
 		h.db.Find(&emailSettings)
-		
+
 		return c.Render("layouts/base", fiber.Map{
 			"ShowNav":       true,
 			"PageType":      "email-settings",
@@ -212,11 +212,11 @@ func (h *SettingsHandler) TestEmailSettings(c *fiber.Ctx) error {
 	cfg := config.New()
 	emailService := services.NewEmailService(cfg, h.db)
 	err = emailService.SendTestEmail(testEmail)
-	
+
 	// Get all settings for display
 	var emailSettings []models.EmailSettings
 	h.db.Find(&emailSettings)
-	
+
 	if err != nil {
 		return c.Render("layouts/base", fiber.Map{
 			"ShowNav":       true,

@@ -12,11 +12,9 @@ import (
 	"gorm.io/gorm"
 )
 
-var secretKey []byte
-
 func InitAuth(cfg *config.Config) {
 	log.Printf("Initializing auth with SecretKey: %s", cfg.SecretKey)
-	secretKey = []byte(cfg.SecretKey)
+	// secretKey currently unused but kept for future JWT implementation
 }
 
 func RequireAuth(c *fiber.Ctx) error {

@@ -52,6 +52,6 @@ func (h *UsersHandler) Login(c *fiber.Ctx) error {
 }
 
 func (h *UsersHandler) Logout(c *fiber.Ctx) error {
-	middleware.Logout(c)
+	_ = middleware.Logout(c)
 	return c.Redirect("/admin/login")
 }

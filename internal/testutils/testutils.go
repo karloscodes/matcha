@@ -42,7 +42,7 @@ func SetupTestApp() *fiber.App {
 	// Initialize auth middleware for tests
 	cfg := config.New()
 	middleware.InitAuth(cfg)
-	
+
 	app := fiber.New(fiber.Config{
 		Views: nil, // No template engine for tests
 	})
@@ -58,7 +58,7 @@ func MockRender(handler func(*fiber.Ctx) error) func(*fiber.Ctx) error {
 				c.SendString("OK")
 			}
 		}()
-		
+
 		err := handler(c)
 		if err != nil {
 			// If there's an error (like template not found), return OK

@@ -87,7 +87,7 @@ func TestUsersHandler_Login(t *testing.T) {
 
 			req := httptest.NewRequest("POST", "/test", strings.NewReader(form.Encode()))
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-			
+
 			resp, err := app.Test(req)
 			require.NoError(t, err)
 
@@ -117,7 +117,7 @@ func TestUsersHandler_Logout(t *testing.T) {
 func TestNewUsersHandler(t *testing.T) {
 	db := testutils.SetupTestDB(t)
 	handler := NewUsersHandler(db)
-	
+
 	assert.NotNil(t, handler)
 	assert.Equal(t, db, handler.db)
 }

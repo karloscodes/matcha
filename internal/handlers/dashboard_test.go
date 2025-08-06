@@ -81,7 +81,7 @@ func TestDashboardHandler_Dashboard(t *testing.T) {
 			require.NoError(t, err)
 
 			assert.Equal(t, tt.expectedStatus, resp.StatusCode)
-			
+
 			respRecorder := httptest.NewRecorder()
 			respRecorder.WriteHeader(resp.StatusCode)
 			respRecorder.WriteString("OK")
@@ -93,7 +93,7 @@ func TestDashboardHandler_Dashboard(t *testing.T) {
 func TestNewDashboardHandler(t *testing.T) {
 	db := testutils.SetupTestDB(t)
 	handler := NewDashboardHandler(db)
-	
+
 	assert.NotNil(t, handler)
 	assert.Equal(t, db, handler.db)
 }

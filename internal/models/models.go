@@ -12,15 +12,15 @@ import (
 )
 
 type Product struct {
-	ID                     uint    `gorm:"primaryKey" json:"id"`
-	Name                   string  `gorm:"not null" json:"name"`
-	Description            string  `json:"description"`
-	Version                string  `gorm:"default:1.0.0" json:"version"`
-	DefaultExpirationDays  int     `gorm:"not null;default:365" json:"default_expiration_days"`
-	DefaultUsageLimit      int     `gorm:"not null;default:1" json:"default_usage_limit"`
-	CreatedAt              time.Time
-	UpdatedAt              time.Time
-	LicenseKeys            []LicenseKey `gorm:"foreignKey:ProductID"`
+	ID                    uint   `gorm:"primaryKey" json:"id"`
+	Name                  string `gorm:"not null" json:"name"`
+	Description           string `json:"description"`
+	Version               string `gorm:"default:1.0.0" json:"version"`
+	DefaultExpirationDays int    `gorm:"not null;default:365" json:"default_expiration_days"`
+	DefaultUsageLimit     int    `gorm:"not null;default:1" json:"default_usage_limit"`
+	CreatedAt             time.Time
+	UpdatedAt             time.Time
+	LicenseKeys           []LicenseKey `gorm:"foreignKey:ProductID"`
 }
 
 type Customer struct {
@@ -36,23 +36,23 @@ type Customer struct {
 }
 
 type LicenseKey struct {
-	ID                  uint       `gorm:"primaryKey" json:"id"`
-	Key                 string     `gorm:"not null;uniqueIndex" json:"key"`
-	ProductID           uint       `gorm:"not null" json:"product_id"`
-	CustomerID          uint       `gorm:"not null" json:"customer_id"`
-	ExpiresAt           *time.Time `json:"expires_at"`
-	MaxActivations      int        `gorm:"not null;default:1" json:"max_activations"`
-	CurrentActivations  int        `gorm:"not null;default:0" json:"current_activations"`
-	UsageLimit          int        `gorm:"not null;default:1" json:"usage_limit"`
-	UsageCount          int        `gorm:"not null;default:0" json:"usage_count"`
-	Metadata            string     `json:"metadata"`
-	Status              string     `gorm:"not null;default:active" json:"status"`
-	IsTrial             bool       `gorm:"not null;default:false" json:"is_trial"`
-	LastValidatedAt     *time.Time `json:"last_validated_at"`
-	CreatedAt           time.Time
-	UpdatedAt           time.Time
-	Product             Product  `gorm:"foreignKey:ProductID"`
-	Customer            Customer `gorm:"foreignKey:CustomerID"`
+	ID                 uint       `gorm:"primaryKey" json:"id"`
+	Key                string     `gorm:"not null;uniqueIndex" json:"key"`
+	ProductID          uint       `gorm:"not null" json:"product_id"`
+	CustomerID         uint       `gorm:"not null" json:"customer_id"`
+	ExpiresAt          *time.Time `json:"expires_at"`
+	MaxActivations     int        `gorm:"not null;default:1" json:"max_activations"`
+	CurrentActivations int        `gorm:"not null;default:0" json:"current_activations"`
+	UsageLimit         int        `gorm:"not null;default:1" json:"usage_limit"`
+	UsageCount         int        `gorm:"not null;default:0" json:"usage_count"`
+	Metadata           string     `json:"metadata"`
+	Status             string     `gorm:"not null;default:active" json:"status"`
+	IsTrial            bool       `gorm:"not null;default:false" json:"is_trial"`
+	LastValidatedAt    *time.Time `json:"last_validated_at"`
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+	Product            Product  `gorm:"foreignKey:ProductID"`
+	Customer           Customer `gorm:"foreignKey:CustomerID"`
 }
 
 type AdminUser struct {
@@ -188,38 +188,38 @@ func (lk *LicenseKey) ToAPIResponse() map[string]interface{} {
 	return map[string]interface{}{
 		"success": true,
 		"purchase": map[string]interface{}{
-			"seller_id":                  "self-hosted",
-			"product_id":                 fmt.Sprintf("%d", lk.ProductID),
-			"product_name":               lk.Product.Name,
-			"permalink":                  lk.Product.Name,
-			"product_permalink":          fmt.Sprintf("https://localhost/products/%d", lk.ProductID),
-			"email":                      lk.Customer.Email,
-			"price":                      0,
-			"gumroad_fee":                0,
-			"currency":                   "usd",
-			"quantity":                   1,
-			"discover_fee_charged":       false,
-			"can_contact":                true,
-			"referrer":                   "direct",
-			"card":                       map[string]interface{}{},
-			"order_number":               lk.ID,
-			"sale_id":                    fmt.Sprintf("sale_%d", lk.ID),
-			"sale_timestamp":             lk.CreatedAt.Format("2006-01-02T15:04:05Z"),
-			"url":                        "",
-			"variants":                   map[string]interface{}{},
-			"license_key":                lk.Key,
-			"ip_country":                 "Unknown",
-			"is_recurring_billing":       false,
-			"is_preorder_authorization":  false,
-			"is_gift_receiver_purchase":  false,
-			"refunded":                   false,
-			"disputed":                   false,
-			"dispute_won":                false,
-			"subscription_id":            nil,
-			"cancelled":                  lk.IsRevoked(),
-			"ended":                      !lk.IsActive(),
-			"uses":                       lk.CurrentActivations,
-			"test":                       true,
+			"seller_id":                 "self-hosted",
+			"product_id":                fmt.Sprintf("%d", lk.ProductID),
+			"product_name":              lk.Product.Name,
+			"permalink":                 lk.Product.Name,
+			"product_permalink":         fmt.Sprintf("https://localhost/products/%d", lk.ProductID),
+			"email":                     lk.Customer.Email,
+			"price":                     0,
+			"gumroad_fee":               0,
+			"currency":                  "usd",
+			"quantity":                  1,
+			"discover_fee_charged":      false,
+			"can_contact":               true,
+			"referrer":                  "direct",
+			"card":                      map[string]interface{}{},
+			"order_number":              lk.ID,
+			"sale_id":                   fmt.Sprintf("sale_%d", lk.ID),
+			"sale_timestamp":            lk.CreatedAt.Format("2006-01-02T15:04:05Z"),
+			"url":                       "",
+			"variants":                  map[string]interface{}{},
+			"license_key":               lk.Key,
+			"ip_country":                "Unknown",
+			"is_recurring_billing":      false,
+			"is_preorder_authorization": false,
+			"is_gift_receiver_purchase": false,
+			"refunded":                  false,
+			"disputed":                  false,
+			"dispute_won":               false,
+			"subscription_id":           nil,
+			"cancelled":                 lk.IsRevoked(),
+			"ended":                     !lk.IsActive(),
+			"uses":                      lk.CurrentActivations,
+			"test":                      true,
 		},
 	}
 }
@@ -274,7 +274,7 @@ func (lk *LicenseKey) GetMetadataMap() map[string]interface{} {
 	}
 
 	var metadata map[string]interface{}
-	json.Unmarshal([]byte(lk.Metadata), &metadata)
+	_ = json.Unmarshal([]byte(lk.Metadata), &metadata)
 	return metadata
 }
 
@@ -306,17 +306,17 @@ func (es *EmailSettings) Save(db *gorm.DB) error {
 
 func (es *EmailSettings) Activate(db *gorm.DB) error {
 	tx := db.Begin()
-	
+
 	if err := tx.Model(&EmailSettings{}).Where("id != ?", es.ID).Update("is_active", false).Error; err != nil {
 		tx.Rollback()
 		return err
 	}
-	
+
 	es.IsActive = true
 	if err := tx.Save(es).Error; err != nil {
 		tx.Rollback()
 		return err
 	}
-	
+
 	return tx.Commit().Error
 }

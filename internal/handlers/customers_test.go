@@ -135,12 +135,12 @@ func TestCustomersHandler_Create(t *testing.T) {
 
 			req := httptest.NewRequest("POST", "/test", strings.NewReader(form.Encode()))
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-			
+
 			resp, err := app.Test(req)
 			require.NoError(t, err)
 
 			assert.Equal(t, tt.expectedStatus, resp.StatusCode)
-			
+
 			if tt.expectedResult != "" {
 				location := resp.Header.Get("Location")
 				assert.Equal(t, tt.expectedResult, location)
@@ -193,7 +193,7 @@ func TestCustomersHandler_Show(t *testing.T) {
 			handler := NewCustomersHandler(db)
 
 			customerID := tt.setupData(db)
-			
+
 			app.Get("/test/:id", testutils.MockRender(handler.Show))
 
 			req := httptest.NewRequest("GET", "/test/"+strconv.Itoa(int(customerID)), nil)
@@ -241,7 +241,7 @@ func TestCustomersHandler_Edit(t *testing.T) {
 			handler := NewCustomersHandler(db)
 
 			customerID := tt.setupData(db)
-			
+
 			app.Get("/test/:id", testutils.MockRender(handler.Edit))
 
 			req := httptest.NewRequest("GET", "/test/"+strconv.Itoa(int(customerID)), nil)
@@ -333,7 +333,7 @@ func TestCustomersHandler_Update(t *testing.T) {
 
 			req := httptest.NewRequest("POST", "/test/"+strconv.Itoa(int(customerID)), strings.NewReader(form.Encode()))
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-			
+
 			resp, err := app.Test(req)
 			require.NoError(t, err)
 
@@ -377,7 +377,7 @@ func TestCustomersHandler_Delete(t *testing.T) {
 			handler := NewCustomersHandler(db)
 
 			customerID := tt.setupData(db)
-			
+
 			app.Delete("/test/:id", func(c *fiber.Ctx) error {
 				return handler.Delete(c)
 			})
@@ -401,7 +401,7 @@ func TestCustomersHandler_Delete(t *testing.T) {
 func TestNewCustomersHandler(t *testing.T) {
 	db := testutils.SetupTestDB(t)
 	handler := NewCustomersHandler(db)
-	
+
 	assert.NotNil(t, handler)
 	assert.Equal(t, db, handler.db)
 }

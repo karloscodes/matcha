@@ -35,10 +35,10 @@ func TestLicenseKeysHandler_Index(t *testing.T) {
 			setupData: func(db *gorm.DB) {
 				product := models.Product{Name: "Test Product", Version: "1.0.0"}
 				db.Create(&product)
-				
+
 				customer := models.Customer{Name: "John Doe", Email: "john@example.com"}
 				db.Create(&customer)
-				
+
 				licenseKey := models.LicenseKey{
 					Key:        "TEST-KEY-123",
 					ProductID:  product.ID,
@@ -78,7 +78,7 @@ func TestLicenseKeysHandler_New(t *testing.T) {
 	// Create test data
 	product := models.Product{Name: "Test Product", Version: "1.0.0"}
 	db.Create(&product)
-	
+
 	customer := models.Customer{Name: "John Doe", Email: "john@example.com"}
 	db.Create(&customer)
 
@@ -102,19 +102,19 @@ func TestLicenseKeysHandler_Create(t *testing.T) {
 			name: "should create license key successfully",
 			setupData: func(db *gorm.DB) (uint, uint) {
 				product := models.Product{
-					Name:                     "Test Product",
-					Version:                  "1.0.0",
-					DefaultExpirationDays:    365,
-					DefaultUsageLimit:        1,
+					Name:                  "Test Product",
+					Version:               "1.0.0",
+					DefaultExpirationDays: 365,
+					DefaultUsageLimit:     1,
 				}
 				db.Create(&product)
-				
+
 				customer := models.Customer{
 					Name:  "John Doe",
 					Email: "john@example.com",
 				}
 				db.Create(&customer)
-				
+
 				return product.ID, customer.ID
 			},
 			expectedStatus: 302,
@@ -127,7 +127,7 @@ func TestLicenseKeysHandler_Create(t *testing.T) {
 					Email: "john@example.com",
 				}
 				db.Create(&customer)
-				
+
 				return 999, customer.ID // Invalid product ID
 			},
 			expectedStatus: 400,
@@ -136,13 +136,13 @@ func TestLicenseKeysHandler_Create(t *testing.T) {
 			name: "should return 400 for invalid customer",
 			setupData: func(db *gorm.DB) (uint, uint) {
 				product := models.Product{
-					Name:                     "Test Product",
-					Version:                  "1.0.0",
-					DefaultExpirationDays:    365,
-					DefaultUsageLimit:        1,
+					Name:                  "Test Product",
+					Version:               "1.0.0",
+					DefaultExpirationDays: 365,
+					DefaultUsageLimit:     1,
 				}
 				db.Create(&product)
-				
+
 				return product.ID, 999 // Invalid customer ID
 			},
 			expectedStatus: 400,
@@ -167,7 +167,7 @@ func TestLicenseKeysHandler_Create(t *testing.T) {
 
 			req := httptest.NewRequest("POST", "/test", strings.NewReader(form.Encode()))
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-			
+
 			resp, err := app.Test(req)
 			require.NoError(t, err)
 
@@ -194,10 +194,10 @@ func TestLicenseKeysHandler_Show(t *testing.T) {
 			setupData: func(db *gorm.DB) uint {
 				product := models.Product{Name: "Test Product", Version: "1.0.0"}
 				db.Create(&product)
-				
+
 				customer := models.Customer{Name: "John Doe", Email: "john@example.com"}
 				db.Create(&customer)
-				
+
 				licenseKey := models.LicenseKey{
 					Key:        "TEST-KEY-123",
 					ProductID:  product.ID,
@@ -225,7 +225,7 @@ func TestLicenseKeysHandler_Show(t *testing.T) {
 			handler := NewLicenseKeysHandler(db)
 
 			licenseKeyID := tt.setupData(db)
-			
+
 			app.Get("/test/:id", testutils.MockRender(handler.Show))
 
 			req := httptest.NewRequest("GET", "/test/"+strconv.Itoa(int(licenseKeyID)), nil)
@@ -248,10 +248,10 @@ func TestLicenseKeysHandler_Edit(t *testing.T) {
 			setupData: func(db *gorm.DB) uint {
 				product := models.Product{Name: "Test Product", Version: "1.0.0"}
 				db.Create(&product)
-				
+
 				customer := models.Customer{Name: "John Doe", Email: "john@example.com"}
 				db.Create(&customer)
-				
+
 				licenseKey := models.LicenseKey{
 					Key:        "TEST-KEY-123",
 					ProductID:  product.ID,
@@ -279,7 +279,7 @@ func TestLicenseKeysHandler_Edit(t *testing.T) {
 			handler := NewLicenseKeysHandler(db)
 
 			licenseKeyID := tt.setupData(db)
-			
+
 			app.Get("/test/:id", testutils.MockRender(handler.Edit))
 
 			req := httptest.NewRequest("GET", "/test/"+strconv.Itoa(int(licenseKeyID)), nil)
@@ -303,10 +303,10 @@ func TestLicenseKeysHandler_Update(t *testing.T) {
 			setupData: func(db *gorm.DB) uint {
 				product := models.Product{Name: "Test Product", Version: "1.0.0"}
 				db.Create(&product)
-				
+
 				customer := models.Customer{Name: "John Doe", Email: "john@example.com"}
 				db.Create(&customer)
-				
+
 				licenseKey := models.LicenseKey{
 					Key:        "TEST-KEY-123",
 					ProductID:  product.ID,
@@ -342,10 +342,10 @@ func TestLicenseKeysHandler_Update(t *testing.T) {
 			setupData: func(db *gorm.DB) uint {
 				product := models.Product{Name: "Test Product", Version: "1.0.0"}
 				db.Create(&product)
-				
+
 				customer := models.Customer{Name: "John Doe", Email: "john@example.com"}
 				db.Create(&customer)
-				
+
 				licenseKey := models.LicenseKey{
 					Key:        "TEST-KEY-123",
 					ProductID:  product.ID,
@@ -383,7 +383,7 @@ func TestLicenseKeysHandler_Update(t *testing.T) {
 
 			req := httptest.NewRequest("POST", "/test/"+strconv.Itoa(int(licenseKeyID)), strings.NewReader(form.Encode()))
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-			
+
 			resp, err := app.Test(req)
 			require.NoError(t, err)
 
@@ -395,7 +395,7 @@ func TestLicenseKeysHandler_Update(t *testing.T) {
 				db.First(&licenseKey, licenseKeyID)
 				assert.Equal(t, 5, licenseKey.UsageLimit)
 				assert.Equal(t, "Updated metadata", licenseKey.Metadata)
-				
+
 				expectedTime, _ := time.Parse("2006-01-02", "2025-12-31")
 				assert.Equal(t, expectedTime, *licenseKey.ExpiresAt)
 			}
@@ -414,10 +414,10 @@ func TestLicenseKeysHandler_Delete(t *testing.T) {
 			setupData: func(db *gorm.DB) uint {
 				product := models.Product{Name: "Test Product", Version: "1.0.0"}
 				db.Create(&product)
-				
+
 				customer := models.Customer{Name: "John Doe", Email: "john@example.com"}
 				db.Create(&customer)
-				
+
 				licenseKey := models.LicenseKey{
 					Key:        "TEST-KEY-123",
 					ProductID:  product.ID,
@@ -438,7 +438,7 @@ func TestLicenseKeysHandler_Delete(t *testing.T) {
 			handler := NewLicenseKeysHandler(db)
 
 			licenseKeyID := tt.setupData(db)
-			
+
 			app.Delete("/test/:id", func(c *fiber.Ctx) error {
 				return handler.Delete(c)
 			})
@@ -467,10 +467,10 @@ func TestLicenseKeysHandler_Revoke(t *testing.T) {
 	// Create test data
 	product := models.Product{Name: "Test Product", Version: "1.0.0"}
 	db.Create(&product)
-	
+
 	customer := models.Customer{Name: "John Doe", Email: "john@example.com"}
 	db.Create(&customer)
-	
+
 	licenseKey := models.LicenseKey{
 		Key:        "TEST-KEY-123",
 		ProductID:  product.ID,
@@ -498,10 +498,10 @@ func TestLicenseKeysHandler_Reactivate(t *testing.T) {
 	// Create test data
 	product := models.Product{Name: "Test Product", Version: "1.0.0"}
 	db.Create(&product)
-	
+
 	customer := models.Customer{Name: "John Doe", Email: "john@example.com"}
 	db.Create(&customer)
-	
+
 	licenseKey := models.LicenseKey{
 		Key:        "TEST-KEY-123",
 		ProductID:  product.ID,
@@ -541,7 +541,7 @@ func TestLicenseKeysHandler_SendEmail(t *testing.T) {
 func TestNewLicenseKeysHandler(t *testing.T) {
 	db := testutils.SetupTestDB(t)
 	handler := NewLicenseKeysHandler(db)
-	
+
 	assert.NotNil(t, handler)
 	assert.Equal(t, db, handler.db)
 }
@@ -549,7 +549,7 @@ func TestNewLicenseKeysHandler(t *testing.T) {
 func TestLicenseKeysHandler_EditTemplateRendering(t *testing.T) {
 	// This test verifies that the edit template can render without panics
 	// by testing scenarios that would cause template errors
-	
+
 	tests := []struct {
 		name      string
 		setupData func(*gorm.DB) uint
@@ -559,10 +559,10 @@ func TestLicenseKeysHandler_EditTemplateRendering(t *testing.T) {
 			setupData: func(db *gorm.DB) uint {
 				product := models.Product{Name: "Test Product", Version: "1.0.0", DefaultExpirationDays: 365, DefaultUsageLimit: 1}
 				db.Create(&product)
-				
+
 				customer := models.Customer{Name: "John Doe", Email: "john@example.com"}
 				db.Create(&customer)
-				
+
 				licenseKey := models.LicenseKey{
 					Key:        "TEST-KEY-123",
 					ProductID:  product.ID,
@@ -579,10 +579,10 @@ func TestLicenseKeysHandler_EditTemplateRendering(t *testing.T) {
 			setupData: func(db *gorm.DB) uint {
 				product := models.Product{Name: "Test Product", Version: "1.0.0", DefaultExpirationDays: 365, DefaultUsageLimit: 1}
 				db.Create(&product)
-				
+
 				customer := models.Customer{Name: "John Doe", Email: "john@example.com"}
 				db.Create(&customer)
-				
+
 				expirationDate := time.Now().AddDate(0, 0, 30) // 30 days from now
 				licenseKey := models.LicenseKey{
 					Key:        "TEST-KEY-456",
@@ -604,14 +604,14 @@ func TestLicenseKeysHandler_EditTemplateRendering(t *testing.T) {
 			handler := NewLicenseKeysHandler(db)
 
 			licenseKeyID := tt.setupData(db)
-			
+
 			// Don't use MockRender - we want to test that the template actually works
 			app.Get("/test/:id", handler.Edit)
 
 			req := httptest.NewRequest("GET", "/test/"+strconv.Itoa(int(licenseKeyID)), nil)
 			resp, err := app.Test(req)
 			require.NoError(t, err)
-			
+
 			// Should not panic and should return success (even if template is missing in test env)
 			// The important thing is that the handler logic doesn't panic on template data preparation
 			assert.True(t, resp.StatusCode == 200 || resp.StatusCode == 500) // 500 is OK for missing template in tests
@@ -622,7 +622,7 @@ func TestLicenseKeysHandler_EditTemplateRendering(t *testing.T) {
 func TestLicenseKeysHandler_ShowTemplateRendering(t *testing.T) {
 	// This test verifies that the show template can render without panics
 	// by testing scenarios that would cause template errors
-	
+
 	tests := []struct {
 		name      string
 		setupData func(*gorm.DB) uint
@@ -632,16 +632,16 @@ func TestLicenseKeysHandler_ShowTemplateRendering(t *testing.T) {
 			setupData: func(db *gorm.DB) uint {
 				product := models.Product{Name: "Test Product", Version: "1.0.0"}
 				db.Create(&product)
-				
+
 				customer := models.Customer{Name: "John Doe", Email: "john@example.com"}
 				db.Create(&customer)
-				
+
 				licenseKey := models.LicenseKey{
-					Key:               "TEST-KEY-123",
-					ProductID:         product.ID,
-					CustomerID:        customer.ID,
-					Status:            "active",
-					LastValidatedAt:   nil, // Nil pointer
+					Key:             "TEST-KEY-123",
+					ProductID:       product.ID,
+					CustomerID:      customer.ID,
+					Status:          "active",
+					LastValidatedAt: nil, // Nil pointer
 				}
 				db.Create(&licenseKey)
 				return licenseKey.ID
@@ -652,17 +652,17 @@ func TestLicenseKeysHandler_ShowTemplateRendering(t *testing.T) {
 			setupData: func(db *gorm.DB) uint {
 				product := models.Product{Name: "Test Product", Version: "1.0.0"}
 				db.Create(&product)
-				
+
 				customer := models.Customer{Name: "John Doe", Email: "john@example.com"}
 				db.Create(&customer)
-				
+
 				lastValidated := time.Now()
 				licenseKey := models.LicenseKey{
-					Key:               "TEST-KEY-456",
-					ProductID:         product.ID,
-					CustomerID:        customer.ID,
-					Status:            "active",
-					LastValidatedAt:   &lastValidated,
+					Key:             "TEST-KEY-456",
+					ProductID:       product.ID,
+					CustomerID:      customer.ID,
+					Status:          "active",
+					LastValidatedAt: &lastValidated,
 				}
 				db.Create(&licenseKey)
 				return licenseKey.ID
@@ -673,10 +673,10 @@ func TestLicenseKeysHandler_ShowTemplateRendering(t *testing.T) {
 			setupData: func(db *gorm.DB) uint {
 				product := models.Product{Name: "Test Product", Version: "1.0.0"}
 				db.Create(&product)
-				
+
 				customer := models.Customer{Name: "John Doe", Email: "john@example.com"}
 				db.Create(&customer)
-				
+
 				licenseKey := models.LicenseKey{
 					Key:        "TEST-KEY-789",
 					ProductID:  product.ID,
@@ -697,14 +697,14 @@ func TestLicenseKeysHandler_ShowTemplateRendering(t *testing.T) {
 			handler := NewLicenseKeysHandler(db)
 
 			licenseKeyID := tt.setupData(db)
-			
+
 			// Don't use MockRender - we want to test that the template actually works
 			app.Get("/test/:id", handler.Show)
 
 			req := httptest.NewRequest("GET", "/test/"+strconv.Itoa(int(licenseKeyID)), nil)
 			resp, err := app.Test(req)
 			require.NoError(t, err)
-			
+
 			// Should not panic and should return success (even if template is missing in test env)
 			// The important thing is that the handler logic doesn't panic on template data preparation
 			assert.True(t, resp.StatusCode == 200 || resp.StatusCode == 500) // 500 is OK for missing template in tests

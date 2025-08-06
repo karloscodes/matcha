@@ -69,13 +69,13 @@ func (h *DashboardHandler) Dashboard(c *fiber.Ctx) error {
 // Email Configuration
 func (h *DashboardHandler) EmailConfigPage(c *fiber.Ctx) error {
 	var settings models.EmailSettings
-	
+
 	// Try to get active email settings
 	activeSettings, err := models.GetActiveEmailSettings(h.db)
 	if err != nil {
 		// No active settings found, show empty form
 		settings = models.EmailSettings{
-			SMTPPort: 587,
+			SMTPPort:       587,
 			SMTPEncryption: "tls",
 		}
 	} else {

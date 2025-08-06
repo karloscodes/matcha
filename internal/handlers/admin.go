@@ -60,7 +60,7 @@ func (h *AdminHandler) Login(c *fiber.Ctx) error {
 }
 
 func (h *AdminHandler) Logout(c *fiber.Ctx) error {
-	middleware.Logout(c)
+	_ = middleware.Logout(c)
 	return c.Redirect("/admin/login")
 }
 
@@ -134,9 +134,9 @@ func (h *AdminHandler) ProductsNew(c *fiber.Ctx) error {
 
 func (h *AdminHandler) ProductsCreate(c *fiber.Ctx) error {
 	log.Printf("ProductsCreate: Method=%s, Path=%s", c.Method(), c.Path())
-	log.Printf("ProductsCreate: Form values - name=%s, description=%s, version=%s", 
+	log.Printf("ProductsCreate: Form values - name=%s, description=%s, version=%s",
 		c.FormValue("name"), c.FormValue("description"), c.FormValue("version"))
-	
+
 	product := models.Product{
 		Name:        c.FormValue("name"),
 		Description: c.FormValue("description"),
@@ -566,4 +566,3 @@ func (h *AdminHandler) LicenseKeysSendEmail(c *fiber.Ctx) error {
 	// For now, just redirect back
 	return c.Redirect("/admin/license-keys/" + c.Params("id"))
 }
-
