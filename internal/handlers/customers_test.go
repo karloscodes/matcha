@@ -361,14 +361,14 @@ func TestCustomersHandler_Update(t *testing.T) {
 				var customer models.Customer
 				db.First(&customer, customerID)
 				assert.Equal(t, tt.expectedName, customer.Name)
-				
+
 				if tt.name == "should update customer successfully" {
 					assert.Equal(t, "updated@example.com", customer.Email)
 					assert.Equal(t, "Updated Corp", customer.Company)
 					assert.Equal(t, "Updated", customer.FirstName)
 					assert.Equal(t, "Name", customer.LastName)
 				}
-				
+
 				if tt.name == "should update customer with name parsing" {
 					assert.Equal(t, "new@example.com", customer.Email)
 					assert.Equal(t, "First", customer.FirstName)

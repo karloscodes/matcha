@@ -325,8 +325,8 @@ func TestLicenseKeysHandler_Update(t *testing.T) {
 			},
 			formData: map[string]string{
 				"_method":     "PUT",
-				"product_id":  "2", // Change to product2
-				"customer_id": "2", // Change to customer2
+				"product_id":  "2",                // Change to product2
+				"customer_id": "2",                // Change to customer2
 				"expires_at":  "2025-12-31T15:04", // Use datetime-local format
 				"usage_limit": "5",
 				"metadata":    "Updated metadata",

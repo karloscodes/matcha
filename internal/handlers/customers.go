@@ -134,7 +134,7 @@ func (h *CustomersHandler) Update(c *fiber.Ctx) error {
 		// Handle separate first_name and last_name fields (for backwards compatibility)
 		customer.FirstName = c.FormValue("first_name")
 		customer.LastName = c.FormValue("last_name")
-		
+
 		// Update Name field from first and last name
 		if customer.FirstName != "" || customer.LastName != "" {
 			customer.Name = strings.TrimSpace(customer.FirstName + " " + customer.LastName)
