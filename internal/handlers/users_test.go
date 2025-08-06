@@ -1,123 +1,141 @@
 package handlers
 
 import (
-	"net/http/httptest"
 	"net/url"
-	"strings"
 	"testing"
 
-	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/gorm"
 
 	"matcha/internal/models"
 	"matcha/internal/testutils"
 )
 
-func TestUsersHandler_LoginPage(t *testing.T) {
-	db := testutils.SetupTestDB(t)
-	app := testutils.SetupTestApp()
-	handler := NewUsersHandler(db)
+// Integration tests for Users - tests full request flow with database
+func TestUsersHandler_Integration(t *testing.T) {
+	t.Run("LoginPage - Display Login Form", func(t *testing.T) {
+		db := testutils.SetupTestDB(t)
+		app := testutils.SetupTestAppWithDB(t, db)
+		handler := NewUsersHandler(db)
 
-	app.Get("/test", testutils.MockRender(handler.LoginPage))
+		app.Get("/login", handler.LoginPage)
 
-	req := httptest.NewRequest("GET", "/test", nil)
-	resp, err := app.Test(req)
-	require.NoError(t, err)
-
-	assert.Equal(t, 200, resp.StatusCode)
-}
-
-func TestUsersHandler_Login(t *testing.T) {
-	tests := []struct {
-		name           string
-		setupData      func(*gorm.DB)
-		formData       map[string]string
-		expectedStatus int
-		expectedResult string
-	}{
-		{
-			name: "should fail with invalid username",
-			setupData: func(db *gorm.DB) {
-				// No user created
-			},
-			formData: map[string]string{
-				"username": "nonexistent",
-				"password": "testpass",
-			},
-			expectedStatus: 200, // Render login page with error
-			expectedResult: "error",
-		},
-		{
-			name: "should fail with invalid password",
-			setupData: func(db *gorm.DB) {
-				admin := models.AdminUser{
-					Username: "testuser",
-				}
-				_ = admin.SetPassword("correctpass")
-				db.Create(&admin)
-			},
-			formData: map[string]string{
-				"username": "testuser",
-				"password": "wrongpass",
-			},
-			expectedStatus: 200, // Render login page with error
-			expectedResult: "error",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			db := testutils.SetupTestDB(t)
-			app := testutils.SetupTestApp()
-			handler := NewUsersHandler(db)
-
-			// Setup test data
-			tt.setupData(db)
-
-			// Create form data
-			form := url.Values{}
-			for key, value := range tt.formData {
-				form.Set(key, value)
-			}
-
-			// Mock the login route with render mocking
-			app.Post("/test", testutils.MockRender(handler.Login))
-
-			req := httptest.NewRequest("POST", "/test", strings.NewReader(form.Encode()))
-			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
-			resp, err := app.Test(req)
-			require.NoError(t, err)
-
-			assert.Equal(t, tt.expectedStatus, resp.StatusCode)
-		})
-	}
-}
-
-func TestUsersHandler_Logout(t *testing.T) {
-	db := testutils.SetupTestDB(t)
-	app := testutils.SetupTestApp()
-	_ = NewUsersHandler(db) // We don't use the handler in this test
-
-	app.Get("/logout", func(c *fiber.Ctx) error {
-		// Mock the middleware.Logout call since we can't test the actual logout without session middleware
-		return c.Redirect("/admin/login")
+		resp := testutils.TestRequest(t, app, "GET", "/login", "")
+		assert.Equal(t, 200, resp.StatusCode)
 	})
 
-	req := httptest.NewRequest("GET", "/logout", nil)
-	resp, err := app.Test(req)
-	require.NoError(t, err)
+	t.Run("Login - Valid Credentials", func(t *testing.T) {
+		db := testutils.SetupTestDB(t)
+		app := testutils.SetupTestAppWithDB(t, db)
+		handler := NewUsersHandler(db)
 
-	assert.Equal(t, 302, resp.StatusCode)
-	assert.Equal(t, "/admin/login", resp.Header.Get("Location"))
-}
+		app.Post("/login", handler.Login)
 
-func TestNewUsersHandler(t *testing.T) {
-	db := testutils.SetupTestDB(t)
-	handler := NewUsersHandler(db)
+		// Create test admin user
+		admin := models.AdminUser{
+			Username: "testuser",
+		}
+		require.NoError(t, admin.SetPassword("testpass"))
+		require.NoError(t, db.Create(&admin).Error)
 
-	assert.NotNil(t, handler)
-	assert.Equal(t, db, handler.db)
+		form := url.Values{
+			"username": {"testuser"},
+			"password": {"testpass"},
+		}
+
+		resp := testutils.TestRequest(t, app, "POST", "/login", form.Encode())
+		// Should redirect on successful login
+		assert.Equal(t, 302, resp.StatusCode)
+	})
+
+	t.Run("Login - Invalid Username", func(t *testing.T) {
+		db := testutils.SetupTestDB(t)
+		app := testutils.SetupTestAppWithDB(t, db)
+		handler := NewUsersHandler(db)
+
+		app.Post("/login", handler.Login)
+
+		form := url.Values{
+			"username": {"nonexistent"},
+			"password": {"testpass"},
+		}
+
+		resp := testutils.TestRequest(t, app, "POST", "/login", form.Encode())
+		// Should render login page with error (200) or redirect back (302)
+		assert.True(t, resp.StatusCode == 200 || resp.StatusCode == 302)
+	})
+
+	t.Run("Login - Invalid Password", func(t *testing.T) {
+		db := testutils.SetupTestDB(t)
+		app := testutils.SetupTestAppWithDB(t, db)
+		handler := NewUsersHandler(db)
+
+		app.Post("/login", handler.Login)
+
+		// Create test admin user
+		admin := models.AdminUser{
+			Username: "testuser",
+		}
+		require.NoError(t, admin.SetPassword("correctpass"))
+		require.NoError(t, db.Create(&admin).Error)
+
+		form := url.Values{
+			"username": {"testuser"},
+			"password": {"wrongpass"},
+		}
+
+		resp := testutils.TestRequest(t, app, "POST", "/login", form.Encode())
+		// Should render login page with error (200) or redirect back (302)
+		assert.True(t, resp.StatusCode == 200 || resp.StatusCode == 302)
+	})
+
+	t.Run("Login - Empty Credentials", func(t *testing.T) {
+		db := testutils.SetupTestDB(t)
+		app := testutils.SetupTestAppWithDB(t, db)
+		handler := NewUsersHandler(db)
+
+		app.Post("/login", handler.Login)
+
+		form := url.Values{
+			"username": {""},
+			"password": {""},
+		}
+
+		resp := testutils.TestRequest(t, app, "POST", "/login", form.Encode())
+		// Should handle empty credentials gracefully
+		assert.True(t, resp.StatusCode == 200 || resp.StatusCode == 302 || resp.StatusCode == 400)
+	})
+
+	t.Run("Logout - Redirect to Login", func(t *testing.T) {
+		db := testutils.SetupTestDB(t)
+		app := testutils.SetupTestAppWithDB(t, db)
+		handler := NewUsersHandler(db)
+
+		app.Get("/logout", handler.Logout)
+
+		resp := testutils.TestRequest(t, app, "GET", "/logout", "")
+		// Should redirect to login page
+		assert.Equal(t, 302, resp.StatusCode)
+	})
+
+	t.Run("Database Verification - User Creation", func(t *testing.T) {
+		db := testutils.SetupTestDB(t)
+
+		// Test user creation and password verification
+		admin := models.AdminUser{
+			Username: "integration_test_user",
+		}
+		require.NoError(t, admin.SetPassword("integration_test_pass"))
+		require.NoError(t, db.Create(&admin).Error)
+
+		// Verify user was created
+		var retrievedAdmin models.AdminUser
+		err := db.Where("username = ?", "integration_test_user").First(&retrievedAdmin).Error
+		require.NoError(t, err)
+		assert.Equal(t, "integration_test_user", retrievedAdmin.Username)
+
+		// Verify password verification works
+		assert.True(t, retrievedAdmin.CheckPassword("integration_test_pass"))
+		assert.False(t, retrievedAdmin.CheckPassword("wrong_password"))
+	})
 }

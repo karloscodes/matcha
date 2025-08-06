@@ -1,6 +1,8 @@
 package testutils
 
 import (
+	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/gofiber/fiber/v2"
@@ -8,8 +10,6 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
-	"matcha/internal/config"
-	"matcha/internal/middleware"
 	"matcha/internal/models"
 )
 
@@ -28,6 +28,35 @@ func SetupTestDB(t *testing.T) *gorm.DB {
 	return db
 }
 
+// SetupTestAppWithDB creates a minimal Fiber app with database context for handler testing
+func SetupTestAppWithDB(t *testing.T, db *gorm.DB) *fiber.App {
+	app := fiber.New(fiber.Config{
+		Views: nil, // No template engine for tests
+	})
+
+	// Add database to context
+	app.Use(func(c *fiber.Ctx) error {
+		c.Locals("db", db)
+		return c.Next()
+	})
+
+	// Add method override middleware (for form testing)
+	app.Use(func(c *fiber.Ctx) error {
+		if c.Method() == fiber.MethodPost {
+			method := c.FormValue("_method")
+			if method != "" {
+				method = strings.ToUpper(method)
+				if method == fiber.MethodPut || method == fiber.MethodDelete || method == fiber.MethodPatch {
+					c.Request().Header.SetMethod(method)
+				}
+			}
+		}
+		return c.Next()
+	})
+
+	return app
+}
+
 // CleanupTestDB removes all data from test database tables using GORM
 func CleanupTestDB(db *gorm.DB) {
 	// Delete all records using GORM's Unscoped to permanently delete
@@ -38,15 +67,87 @@ func CleanupTestDB(db *gorm.DB) {
 	db.Unscoped().Where("1 = 1").Delete(&models.EmailSettings{})
 }
 
+// SetupTestApp creates a basic Fiber app for unit testing handlers
 func SetupTestApp() *fiber.App {
-	// Initialize auth middleware for tests
-	cfg := config.New()
-	middleware.InitAuth(cfg)
-
 	app := fiber.New(fiber.Config{
 		Views: nil, // No template engine for tests
 	})
 	return app
+}
+
+// SetupIntegrationApp creates a basic Fiber app with database context for integration testing
+func SetupIntegrationApp(t *testing.T) (*fiber.App, *gorm.DB) {
+	db := SetupTestDB(t)
+
+	app := fiber.New(fiber.Config{
+		Views: nil, // No template engine for tests
+	})
+
+	// Add database to context
+	app.Use(func(c *fiber.Ctx) error {
+		c.Locals("db", db)
+		return c.Next()
+	})
+
+	// Add method override middleware (for form testing)
+	app.Use(func(c *fiber.Ctx) error {
+		if c.Method() == fiber.MethodPost {
+			method := c.FormValue("_method")
+			if method != "" {
+				method = strings.ToUpper(method)
+				if method == fiber.MethodPut || method == fiber.MethodDelete || method == fiber.MethodPatch {
+					c.Request().Header.SetMethod(method)
+				}
+			}
+		}
+		return c.Next()
+	})
+
+	return app, db
+}
+
+// TestRequest helper to make HTTP requests to the test app
+func TestRequest(t *testing.T, app *fiber.App, method, url string, body string) *http.Response {
+	var req *http.Request
+	var err error
+
+	if body != "" {
+		req, err = http.NewRequest(method, url, strings.NewReader(body))
+	} else {
+		req, err = http.NewRequest(method, url, nil)
+	}
+	require.NoError(t, err)
+
+	// Set content type for POST/PUT requests
+	if method == "POST" || method == "PUT" {
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	}
+
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+
+	return resp
+}
+
+// TestRequestJSON helper to make JSON HTTP requests to the test app
+func TestRequestJSON(t *testing.T, app *fiber.App, method, url string, body string) *http.Response {
+	var req *http.Request
+	var err error
+
+	if body != "" {
+		req, err = http.NewRequest(method, url, strings.NewReader(body))
+	} else {
+		req, err = http.NewRequest(method, url, nil)
+	}
+	require.NoError(t, err)
+
+	// Set content type for JSON requests
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+
+	return resp
 }
 
 // MockRender wraps a handler to mock template rendering by catching panics and returning OK

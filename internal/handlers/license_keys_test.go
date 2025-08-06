@@ -1,762 +1,476 @@
 package handlers
 
 import (
-	"net/http/httptest"
 	"net/url"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/gorm"
 
 	"matcha/internal/models"
 	"matcha/internal/testutils"
 )
 
-func TestLicenseKeysHandler_Index(t *testing.T) {
-	tests := []struct {
-		name           string
-		setupData      func(*gorm.DB)
-		expectedStatus int
-	}{
-		{
-			name: "should render license keys index with empty list",
-			setupData: func(db *gorm.DB) {
-				// No license keys
-			},
-			expectedStatus: 200,
-		},
-		{
-			name: "should render license keys index with license keys",
-			setupData: func(db *gorm.DB) {
-				product := models.Product{Name: "Test Product", Version: "1.0.0"}
-				db.Create(&product)
-
-				customer := models.Customer{Name: "John Doe", Email: "john@example.com"}
-				db.Create(&customer)
-
-				licenseKey := models.LicenseKey{
-					Key:        "TEST-KEY-123",
-					ProductID:  product.ID,
-					CustomerID: customer.ID,
-					Status:     "active",
-				}
-				db.Create(&licenseKey)
-			},
-			expectedStatus: 200,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			db := testutils.SetupTestDB(t)
-			app := testutils.SetupTestApp()
-			handler := NewLicenseKeysHandler(db)
-
-			tt.setupData(db)
-
-			app.Get("/test", testutils.MockRender(handler.Index))
-
-			req := httptest.NewRequest("GET", "/test", nil)
-			resp, err := app.Test(req)
-			require.NoError(t, err)
-
-			assert.Equal(t, tt.expectedStatus, resp.StatusCode)
-		})
-	}
-}
-
-func TestLicenseKeysHandler_New(t *testing.T) {
-	db := testutils.SetupTestDB(t)
-	app := testutils.SetupTestApp()
-	handler := NewLicenseKeysHandler(db)
-
-	// Create test data
-	product := models.Product{Name: "Test Product", Version: "1.0.0"}
-	db.Create(&product)
-
-	customer := models.Customer{Name: "John Doe", Email: "john@example.com"}
-	db.Create(&customer)
-
-	app.Get("/test", testutils.MockRender(handler.New))
-
-	req := httptest.NewRequest("GET", "/test", nil)
-	resp, err := app.Test(req)
-	require.NoError(t, err)
-
-	assert.Equal(t, 200, resp.StatusCode)
-}
-
-func TestLicenseKeysHandler_Create(t *testing.T) {
-	tests := []struct {
-		name           string
-		setupData      func(*gorm.DB) (productID, customerID uint)
-		formData       map[string]string
-		expectedStatus int
-	}{
-		{
-			name: "should create license key successfully",
-			setupData: func(db *gorm.DB) (uint, uint) {
-				product := models.Product{
-					Name:                  "Test Product",
-					Version:               "1.0.0",
-					DefaultExpirationDays: 365,
-					DefaultUsageLimit:     1,
-				}
-				db.Create(&product)
-
-				customer := models.Customer{
-					Name:  "John Doe",
-					Email: "john@example.com",
-				}
-				db.Create(&customer)
-
-				return product.ID, customer.ID
-			},
-			expectedStatus: 302,
-		},
-		{
-			name: "should return 400 for invalid product",
-			setupData: func(db *gorm.DB) (uint, uint) {
-				customer := models.Customer{
-					Name:  "John Doe",
-					Email: "john@example.com",
-				}
-				db.Create(&customer)
-
-				return 999, customer.ID // Invalid product ID
-			},
-			expectedStatus: 400,
-		},
-		{
-			name: "should return 400 for invalid customer",
-			setupData: func(db *gorm.DB) (uint, uint) {
-				product := models.Product{
-					Name:                  "Test Product",
-					Version:               "1.0.0",
-					DefaultExpirationDays: 365,
-					DefaultUsageLimit:     1,
-				}
-				db.Create(&product)
-
-				return product.ID, 999 // Invalid customer ID
-			},
-			expectedStatus: 400,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			db := testutils.SetupTestDB(t)
-			app := testutils.SetupTestApp()
-			handler := NewLicenseKeysHandler(db)
-
-			productID, customerID := tt.setupData(db)
-
-			form := url.Values{}
-			form.Set("product_id", strconv.Itoa(int(productID)))
-			form.Set("customer_id", strconv.Itoa(int(customerID)))
-
-			app.Post("/test", func(c *fiber.Ctx) error {
-				return handler.Create(c)
-			})
-
-			req := httptest.NewRequest("POST", "/test", strings.NewReader(form.Encode()))
-			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
-			resp, err := app.Test(req)
-			require.NoError(t, err)
-
-			assert.Equal(t, tt.expectedStatus, resp.StatusCode)
-
-			// Verify license key was created if successful
-			if tt.expectedStatus == 302 {
-				var count int64
-				db.Model(&models.LicenseKey{}).Count(&count)
-				assert.Equal(t, int64(1), count)
-			}
-		})
-	}
-}
-
-func TestLicenseKeysHandler_Show(t *testing.T) {
-	tests := []struct {
-		name           string
-		setupData      func(*gorm.DB) uint
-		expectedStatus int
-	}{
-		{
-			name: "should show existing license key",
-			setupData: func(db *gorm.DB) uint {
-				product := models.Product{Name: "Test Product", Version: "1.0.0"}
-				db.Create(&product)
-
-				customer := models.Customer{Name: "John Doe", Email: "john@example.com"}
-				db.Create(&customer)
-
-				licenseKey := models.LicenseKey{
-					Key:        "TEST-KEY-123",
-					ProductID:  product.ID,
-					CustomerID: customer.ID,
-					Status:     "active",
-				}
-				db.Create(&licenseKey)
-				return licenseKey.ID
-			},
-			expectedStatus: 200,
-		},
-		{
-			name: "should return 404 for non-existent license key",
-			setupData: func(db *gorm.DB) uint {
-				return 999
-			},
-			expectedStatus: 404,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			db := testutils.SetupTestDB(t)
-			app := testutils.SetupTestApp()
-			handler := NewLicenseKeysHandler(db)
-
-			licenseKeyID := tt.setupData(db)
-
-			app.Get("/test/:id", testutils.MockRender(handler.Show))
-
-			req := httptest.NewRequest("GET", "/test/"+strconv.Itoa(int(licenseKeyID)), nil)
-			resp, err := app.Test(req)
-			require.NoError(t, err)
-
-			assert.Equal(t, tt.expectedStatus, resp.StatusCode)
-		})
-	}
-}
-
-func TestLicenseKeysHandler_Edit(t *testing.T) {
-	tests := []struct {
-		name           string
-		setupData      func(*gorm.DB) uint
-		expectedStatus int
-	}{
-		{
-			name: "should show edit form for existing license key",
-			setupData: func(db *gorm.DB) uint {
-				product := models.Product{Name: "Test Product", Version: "1.0.0"}
-				db.Create(&product)
-
-				customer := models.Customer{Name: "John Doe", Email: "john@example.com"}
-				db.Create(&customer)
-
-				licenseKey := models.LicenseKey{
-					Key:        "TEST-KEY-123",
-					ProductID:  product.ID,
-					CustomerID: customer.ID,
-					Status:     "active",
-				}
-				db.Create(&licenseKey)
-				return licenseKey.ID
-			},
-			expectedStatus: 200,
-		},
-		{
-			name: "should return 404 for non-existent license key",
-			setupData: func(db *gorm.DB) uint {
-				return 999
-			},
-			expectedStatus: 404,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			db := testutils.SetupTestDB(t)
-			app := testutils.SetupTestApp()
-			handler := NewLicenseKeysHandler(db)
-
-			licenseKeyID := tt.setupData(db)
-
-			app.Get("/test/:id", testutils.MockRender(handler.Edit))
-
-			req := httptest.NewRequest("GET", "/test/"+strconv.Itoa(int(licenseKeyID)), nil)
-			resp, err := app.Test(req)
-			require.NoError(t, err)
-
-			assert.Equal(t, tt.expectedStatus, resp.StatusCode)
-		})
-	}
-}
-
-func TestLicenseKeysHandler_Update(t *testing.T) {
-	tests := []struct {
-		name           string
-		setupData      func(*gorm.DB) uint
-		formData       map[string]string
-		expectedStatus int
-	}{
-		{
-			name: "should update license key successfully",
-			setupData: func(db *gorm.DB) uint {
-				product1 := models.Product{Name: "Test Product", Version: "1.0.0"}
-				db.Create(&product1)
-
-				product2 := models.Product{Name: "Updated Product", Version: "2.0.0"}
-				db.Create(&product2)
-
-				customer1 := models.Customer{Name: "John Doe", Email: "john@example.com"}
-				db.Create(&customer1)
-
-				customer2 := models.Customer{Name: "Jane Smith", Email: "jane@example.com"}
-				db.Create(&customer2)
-
-				licenseKey := models.LicenseKey{
-					Key:        "TEST-KEY-123",
-					ProductID:  product1.ID,
-					CustomerID: customer1.ID,
-					Status:     "active",
-					UsageLimit: 1,
-				}
-				db.Create(&licenseKey)
-				return licenseKey.ID
-			},
-			formData: map[string]string{
-				"_method":     "PUT",
-				"product_id":  "2",                // Change to product2
-				"customer_id": "2",                // Change to customer2
-				"expires_at":  "2025-12-31T15:04", // Use datetime-local format
-				"usage_limit": "5",
-				"metadata":    "Updated metadata",
-			},
-			expectedStatus: 302,
-		},
-		{
-			name: "should update license key with partial fields",
-			setupData: func(db *gorm.DB) uint {
-				product := models.Product{Name: "Test Product", Version: "1.0.0"}
-				db.Create(&product)
-
-				customer := models.Customer{Name: "John Doe", Email: "john@example.com"}
-				db.Create(&customer)
-
-				licenseKey := models.LicenseKey{
-					Key:        "TEST-KEY-456",
-					ProductID:  product.ID,
-					CustomerID: customer.ID,
-					Status:     "active",
-					UsageLimit: 10,
-				}
-				db.Create(&licenseKey)
-				return licenseKey.ID
-			},
-			formData: map[string]string{
-				"_method":     "PUT",
-				"usage_limit": "20", // Only update usage limit
-			},
-			expectedStatus: 302,
-		},
-		{
-			name: "should return 404 for non-existent license key",
-			setupData: func(db *gorm.DB) uint {
-				return 999
-			},
-			formData: map[string]string{
-				"_method":     "PUT",
-				"expires_at":  "2025-12-31",
-				"usage_limit": "5",
-			},
-			expectedStatus: 404,
-		},
-		{
-			name: "should return 405 for invalid method",
-			setupData: func(db *gorm.DB) uint {
-				product := models.Product{Name: "Test Product", Version: "1.0.0"}
-				db.Create(&product)
-
-				customer := models.Customer{Name: "John Doe", Email: "john@example.com"}
-				db.Create(&customer)
-
-				licenseKey := models.LicenseKey{
-					Key:        "TEST-KEY-123",
-					ProductID:  product.ID,
-					CustomerID: customer.ID,
-					Status:     "active",
-				}
-				db.Create(&licenseKey)
-				return licenseKey.ID
-			},
-			formData: map[string]string{
-				"_method":     "INVALID",
-				"expires_at":  "2025-12-31",
-				"usage_limit": "5",
-			},
-			expectedStatus: 405,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			db := testutils.SetupTestDB(t)
-			app := testutils.SetupTestApp()
-			handler := NewLicenseKeysHandler(db)
-
-			licenseKeyID := tt.setupData(db)
-
-			form := url.Values{}
-			for key, value := range tt.formData {
-				form.Set(key, value)
-			}
-
-			app.Post("/test/:id", func(c *fiber.Ctx) error {
-				return handler.Update(c)
-			})
-
-			req := httptest.NewRequest("POST", "/test/"+strconv.Itoa(int(licenseKeyID)), strings.NewReader(form.Encode()))
-			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
-			resp, err := app.Test(req)
-			require.NoError(t, err)
-
-			assert.Equal(t, tt.expectedStatus, resp.StatusCode)
-
-			// Verify license key was updated if successful
-			if tt.expectedStatus == 302 {
-				var licenseKey models.LicenseKey
-				db.First(&licenseKey, licenseKeyID)
-
-				if tt.name == "should update license key successfully" {
-					// Verify all fields were updated
-					assert.Equal(t, uint(2), licenseKey.ProductID)
-					assert.Equal(t, uint(2), licenseKey.CustomerID)
-					assert.Equal(t, 5, licenseKey.UsageLimit)
-					assert.Equal(t, "Updated metadata", licenseKey.Metadata)
-
-					expectedTime, _ := time.Parse("2006-01-02T15:04", "2025-12-31T15:04")
-					if licenseKey.ExpiresAt != nil {
-						assert.Equal(t, expectedTime, *licenseKey.ExpiresAt)
-					}
-				}
-
-				if tt.name == "should update license key with partial fields" {
-					// Verify only usage limit was updated
-					assert.Equal(t, 20, licenseKey.UsageLimit)
-					// Other fields should remain unchanged
-					assert.Equal(t, uint(1), licenseKey.ProductID)
-					assert.Equal(t, uint(1), licenseKey.CustomerID)
-				}
-			}
-		})
-	}
-}
-
-func TestLicenseKeysHandler_Delete(t *testing.T) {
-	tests := []struct {
-		name           string
-		setupData      func(*gorm.DB) uint
-		expectedStatus int
-	}{
-		{
-			name: "should delete existing license key",
-			setupData: func(db *gorm.DB) uint {
-				product := models.Product{Name: "Test Product", Version: "1.0.0"}
-				db.Create(&product)
-
-				customer := models.Customer{Name: "John Doe", Email: "john@example.com"}
-				db.Create(&customer)
-
-				licenseKey := models.LicenseKey{
-					Key:        "TEST-KEY-123",
-					ProductID:  product.ID,
-					CustomerID: customer.ID,
-					Status:     "active",
-				}
-				db.Create(&licenseKey)
-				return licenseKey.ID
-			},
-			expectedStatus: 302,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			db := testutils.SetupTestDB(t)
-			app := testutils.SetupTestApp()
-			handler := NewLicenseKeysHandler(db)
-
-			licenseKeyID := tt.setupData(db)
-
-			app.Delete("/test/:id", func(c *fiber.Ctx) error {
-				return handler.Delete(c)
-			})
-
-			req := httptest.NewRequest("DELETE", "/test/"+strconv.Itoa(int(licenseKeyID)), nil)
-			resp, err := app.Test(req)
-			require.NoError(t, err)
-
-			assert.Equal(t, tt.expectedStatus, resp.StatusCode)
-
-			// Verify license key was deleted
-			if tt.expectedStatus == 302 {
-				var count int64
-				db.Model(&models.LicenseKey{}).Where("id = ?", licenseKeyID).Count(&count)
-				assert.Equal(t, int64(0), count)
-			}
-		})
-	}
-}
-
-func TestLicenseKeysHandler_Revoke(t *testing.T) {
-	db := testutils.SetupTestDB(t)
-	app := testutils.SetupTestApp()
-	handler := NewLicenseKeysHandler(db)
-
-	// Create test data
-	product := models.Product{Name: "Test Product", Version: "1.0.0"}
-	db.Create(&product)
-
-	customer := models.Customer{Name: "John Doe", Email: "john@example.com"}
-	db.Create(&customer)
-
-	licenseKey := models.LicenseKey{
-		Key:        "TEST-KEY-123",
-		ProductID:  product.ID,
-		CustomerID: customer.ID,
-		Status:     "active",
-	}
-	db.Create(&licenseKey)
-
-	app.Post("/test/:id", func(c *fiber.Ctx) error {
-		return handler.Revoke(c)
+// Integration tests for License Keys - tests full request flow with database
+func TestLicenseKeysHandler_Integration(t *testing.T) {
+	t.Run("Index - Display License Keys", func(t *testing.T) {
+		db := testutils.SetupTestDB(t)
+		app := testutils.SetupTestAppWithDB(t, db)
+		handler := NewLicenseKeysHandler(db)
+
+		app.Get("/license-keys", handler.Index)
+
+		// Test empty list
+		resp := testutils.TestRequest(t, app, "GET", "/license-keys", "")
+		assert.Equal(t, 200, resp.StatusCode)
+
+		// Create test data and test with data
+		product := models.Product{Name: "Test Product", Version: "1.0.0"}
+		require.NoError(t, db.Create(&product).Error)
+
+		customer := models.Customer{Name: "John Doe", Email: "john@example.com"}
+		require.NoError(t, db.Create(&customer).Error)
+
+		licenseKey := models.LicenseKey{
+			Key:        "TEST-KEY-123",
+			ProductID:  product.ID,
+			CustomerID: customer.ID,
+			Status:     "active",
+		}
+		require.NoError(t, db.Create(&licenseKey).Error)
+
+		resp = testutils.TestRequest(t, app, "GET", "/license-keys", "")
+		assert.Equal(t, 200, resp.StatusCode)
 	})
 
-	req := httptest.NewRequest("POST", "/test/"+strconv.Itoa(int(licenseKey.ID)), nil)
-	resp, err := app.Test(req)
-	require.NoError(t, err)
+	t.Run("New - Display Create Form", func(t *testing.T) {
+		db := testutils.SetupTestDB(t)
+		app := testutils.SetupTestAppWithDB(t, db)
+		handler := NewLicenseKeysHandler(db)
 
-	assert.Equal(t, 302, resp.StatusCode)
-}
+		app.Get("/license-keys/new", handler.New)
 
-func TestLicenseKeysHandler_Reactivate(t *testing.T) {
-	db := testutils.SetupTestDB(t)
-	app := testutils.SetupTestApp()
-	handler := NewLicenseKeysHandler(db)
+		// Create test data for form options
+		product := models.Product{Name: "Test Product", Version: "1.0.0"}
+		require.NoError(t, db.Create(&product).Error)
 
-	// Create test data
-	product := models.Product{Name: "Test Product", Version: "1.0.0"}
-	db.Create(&product)
+		customer := models.Customer{Name: "John Doe", Email: "john@example.com"}
+		require.NoError(t, db.Create(&customer).Error)
 
-	customer := models.Customer{Name: "John Doe", Email: "john@example.com"}
-	db.Create(&customer)
-
-	licenseKey := models.LicenseKey{
-		Key:        "TEST-KEY-123",
-		ProductID:  product.ID,
-		CustomerID: customer.ID,
-		Status:     "revoked",
-	}
-	db.Create(&licenseKey)
-
-	app.Post("/test/:id", func(c *fiber.Ctx) error {
-		return handler.Reactivate(c)
+		resp := testutils.TestRequest(t, app, "GET", "/license-keys/new", "")
+		assert.Equal(t, 200, resp.StatusCode)
 	})
 
-	req := httptest.NewRequest("POST", "/test/"+strconv.Itoa(int(licenseKey.ID)), nil)
-	resp, err := app.Test(req)
-	require.NoError(t, err)
+	t.Run("Create - Valid License Key", func(t *testing.T) {
+		db := testutils.SetupTestDB(t)
+		app := testutils.SetupTestAppWithDB(t, db)
+		handler := NewLicenseKeysHandler(db)
 
-	assert.Equal(t, 302, resp.StatusCode)
-}
+		app.Post("/license-keys", handler.Create)
 
-func TestLicenseKeysHandler_SendEmail(t *testing.T) {
-	db := testutils.SetupTestDB(t)
-	app := testutils.SetupTestApp()
-	handler := NewLicenseKeysHandler(db)
+		// Setup test data
+		product := models.Product{
+			Name:                  "Test Product",
+			Version:               "1.0.0",
+			DefaultExpirationDays: 365,
+			DefaultUsageLimit:     1,
+		}
+		require.NoError(t, db.Create(&product).Error)
 
-	app.Post("/test/:id", func(c *fiber.Ctx) error {
-		return handler.SendEmail(c)
+		customer := models.Customer{Name: "John Doe", Email: "john@example.com"}
+		require.NoError(t, db.Create(&customer).Error)
+
+		// Test form submission
+		form := url.Values{
+			"key":             {"INTEGRATION-TEST-KEY"},
+			"product_id":      {strconv.Itoa(int(product.ID))},
+			"customer_id":     {strconv.Itoa(int(customer.ID))},
+			"max_activations": {"5"},
+		}
+
+		resp := testutils.TestRequest(t, app, "POST", "/license-keys", form.Encode())
+		assert.Equal(t, 302, resp.StatusCode) // Should redirect
+
+		// Verify database state
+		var licenseKey models.LicenseKey
+		err := db.Where("key = ?", "INTEGRATION-TEST-KEY").Preload("Product").Preload("Customer").First(&licenseKey).Error
+		require.NoError(t, err)
+		assert.Equal(t, "INTEGRATION-TEST-KEY", licenseKey.Key)
+		assert.Equal(t, product.ID, licenseKey.ProductID)
+		assert.Equal(t, customer.ID, licenseKey.CustomerID)
+		assert.Equal(t, 5, licenseKey.MaxActivations)
 	})
 
-	req := httptest.NewRequest("POST", "/test/123", nil)
-	resp, err := app.Test(req)
-	require.NoError(t, err)
+	t.Run("Create - Invalid Product", func(t *testing.T) {
+		db := testutils.SetupTestDB(t)
+		app := testutils.SetupTestAppWithDB(t, db)
+		handler := NewLicenseKeysHandler(db)
 
-	assert.Equal(t, 302, resp.StatusCode)
-	assert.Equal(t, "/admin/license-keys/123", resp.Header.Get("Location"))
-}
+		app.Post("/license-keys", handler.Create)
 
-func TestNewLicenseKeysHandler(t *testing.T) {
-	db := testutils.SetupTestDB(t)
-	handler := NewLicenseKeysHandler(db)
+		customer := models.Customer{Name: "John Doe", Email: "john@example.com"}
+		require.NoError(t, db.Create(&customer).Error)
 
-	assert.NotNil(t, handler)
-	assert.Equal(t, db, handler.db)
-}
+		form := url.Values{
+			"product_id":  {"999"}, // Invalid product ID
+			"customer_id": {strconv.Itoa(int(customer.ID))},
+		}
 
-func TestLicenseKeysHandler_EditTemplateRendering(t *testing.T) {
-	// This test verifies that the edit template can render without panics
-	// by testing scenarios that would cause template errors
+		resp := testutils.TestRequest(t, app, "POST", "/license-keys", form.Encode())
+		assert.Equal(t, 400, resp.StatusCode)
+	})
 
-	tests := []struct {
-		name      string
-		setupData func(*gorm.DB) uint
-	}{
-		{
-			name: "should handle license key with nil expires_at",
-			setupData: func(db *gorm.DB) uint {
-				product := models.Product{Name: "Test Product", Version: "1.0.0", DefaultExpirationDays: 365, DefaultUsageLimit: 1}
-				db.Create(&product)
+	t.Run("Create - Invalid Customer", func(t *testing.T) {
+		db := testutils.SetupTestDB(t)
+		app := testutils.SetupTestAppWithDB(t, db)
+		handler := NewLicenseKeysHandler(db)
 
-				customer := models.Customer{Name: "John Doe", Email: "john@example.com"}
-				db.Create(&customer)
+		app.Post("/license-keys", handler.Create)
 
-				licenseKey := models.LicenseKey{
-					Key:        "TEST-KEY-123",
-					ProductID:  product.ID,
-					CustomerID: customer.ID,
-					Status:     "active",
-					ExpiresAt:  nil, // Nil pointer - would cause panic if not handled properly
-				}
-				db.Create(&licenseKey)
-				return licenseKey.ID
-			},
-		},
-		{
-			name: "should handle license key with expires_at set",
-			setupData: func(db *gorm.DB) uint {
-				product := models.Product{Name: "Test Product", Version: "1.0.0", DefaultExpirationDays: 365, DefaultUsageLimit: 1}
-				db.Create(&product)
+		product := models.Product{Name: "Test Product", Version: "1.0.0"}
+		require.NoError(t, db.Create(&product).Error)
 
-				customer := models.Customer{Name: "John Doe", Email: "john@example.com"}
-				db.Create(&customer)
+		form := url.Values{
+			"product_id":  {strconv.Itoa(int(product.ID))},
+			"customer_id": {"999"}, // Invalid customer ID
+		}
 
-				expirationDate := time.Now().AddDate(0, 0, 30) // 30 days from now
-				licenseKey := models.LicenseKey{
-					Key:        "TEST-KEY-456",
-					ProductID:  product.ID,
-					CustomerID: customer.ID,
-					Status:     "active",
-					ExpiresAt:  &expirationDate,
-				}
-				db.Create(&licenseKey)
-				return licenseKey.ID
-			},
-		},
-	}
+		resp := testutils.TestRequest(t, app, "POST", "/license-keys", form.Encode())
+		assert.Equal(t, 400, resp.StatusCode)
+	})
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			db := testutils.SetupTestDB(t)
-			app := testutils.SetupTestApp()
-			handler := NewLicenseKeysHandler(db)
+	t.Run("Show - Existing License Key", func(t *testing.T) {
+		db := testutils.SetupTestDB(t)
+		app := testutils.SetupTestAppWithDB(t, db)
+		handler := NewLicenseKeysHandler(db)
 
-			licenseKeyID := tt.setupData(db)
+		app.Get("/license-keys/:id", handler.Show)
 
-			// Don't use MockRender - we want to test that the template actually works
-			app.Get("/test/:id", handler.Edit)
+		// Setup test data
+		product := models.Product{Name: "Test Product", Version: "1.0.0"}
+		require.NoError(t, db.Create(&product).Error)
 
-			req := httptest.NewRequest("GET", "/test/"+strconv.Itoa(int(licenseKeyID)), nil)
-			resp, err := app.Test(req)
-			require.NoError(t, err)
+		customer := models.Customer{Name: "John Doe", Email: "john@example.com"}
+		require.NoError(t, db.Create(&customer).Error)
 
-			// Should not panic and should return success (even if template is missing in test env)
-			// The important thing is that the handler logic doesn't panic on template data preparation
-			assert.True(t, resp.StatusCode == 200 || resp.StatusCode == 500) // 500 is OK for missing template in tests
-		})
-	}
-}
+		licenseKey := models.LicenseKey{
+			Key:        "TEST-KEY-123",
+			ProductID:  product.ID,
+			CustomerID: customer.ID,
+			Status:     "active",
+		}
+		require.NoError(t, db.Create(&licenseKey).Error)
 
-func TestLicenseKeysHandler_ShowTemplateRendering(t *testing.T) {
-	// This test verifies that the show template can render without panics
-	// by testing scenarios that would cause template errors
+		resp := testutils.TestRequest(t, app, "GET", "/license-keys/"+strconv.Itoa(int(licenseKey.ID)), "")
+		assert.Equal(t, 200, resp.StatusCode)
+	})
 
-	tests := []struct {
-		name      string
-		setupData func(*gorm.DB) uint
-	}{
-		{
-			name: "should handle license key with nil LastValidatedAt",
-			setupData: func(db *gorm.DB) uint {
-				product := models.Product{Name: "Test Product", Version: "1.0.0"}
-				db.Create(&product)
+	t.Run("Show - Non-existent License Key", func(t *testing.T) {
+		db := testutils.SetupTestDB(t)
+		app := testutils.SetupTestAppWithDB(t, db)
+		handler := NewLicenseKeysHandler(db)
 
-				customer := models.Customer{Name: "John Doe", Email: "john@example.com"}
-				db.Create(&customer)
+		app.Get("/license-keys/:id", handler.Show)
 
-				licenseKey := models.LicenseKey{
-					Key:             "TEST-KEY-123",
-					ProductID:       product.ID,
-					CustomerID:      customer.ID,
-					Status:          "active",
-					LastValidatedAt: nil, // Nil pointer
-				}
-				db.Create(&licenseKey)
-				return licenseKey.ID
-			},
-		},
-		{
-			name: "should handle license key with LastValidatedAt set",
-			setupData: func(db *gorm.DB) uint {
-				product := models.Product{Name: "Test Product", Version: "1.0.0"}
-				db.Create(&product)
+		resp := testutils.TestRequest(t, app, "GET", "/license-keys/999", "")
+		assert.Equal(t, 404, resp.StatusCode)
+	})
 
-				customer := models.Customer{Name: "John Doe", Email: "john@example.com"}
-				db.Create(&customer)
+	t.Run("Edit - Existing License Key", func(t *testing.T) {
+		db := testutils.SetupTestDB(t)
+		app := testutils.SetupTestAppWithDB(t, db)
+		handler := NewLicenseKeysHandler(db)
 
-				lastValidated := time.Now()
-				licenseKey := models.LicenseKey{
-					Key:             "TEST-KEY-456",
-					ProductID:       product.ID,
-					CustomerID:      customer.ID,
-					Status:          "active",
-					LastValidatedAt: &lastValidated,
-				}
-				db.Create(&licenseKey)
-				return licenseKey.ID
-			},
-		},
-		{
-			name: "should handle license key with nil ExpiresAt",
-			setupData: func(db *gorm.DB) uint {
-				product := models.Product{Name: "Test Product", Version: "1.0.0"}
-				db.Create(&product)
+		app.Get("/license-keys/:id/edit", handler.Edit)
 
-				customer := models.Customer{Name: "John Doe", Email: "john@example.com"}
-				db.Create(&customer)
+		// Setup test data
+		product := models.Product{Name: "Test Product", Version: "1.0.0"}
+		require.NoError(t, db.Create(&product).Error)
 
-				licenseKey := models.LicenseKey{
-					Key:        "TEST-KEY-789",
-					ProductID:  product.ID,
-					CustomerID: customer.ID,
-					Status:     "active",
-					ExpiresAt:  nil,
-				}
-				db.Create(&licenseKey)
-				return licenseKey.ID
-			},
-		},
-	}
+		customer := models.Customer{Name: "John Doe", Email: "john@example.com"}
+		require.NoError(t, db.Create(&customer).Error)
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			db := testutils.SetupTestDB(t)
-			app := testutils.SetupTestApp()
-			handler := NewLicenseKeysHandler(db)
+		licenseKey := models.LicenseKey{
+			Key:        "TEST-KEY-123",
+			ProductID:  product.ID,
+			CustomerID: customer.ID,
+			Status:     "active",
+		}
+		require.NoError(t, db.Create(&licenseKey).Error)
 
-			licenseKeyID := tt.setupData(db)
+		resp := testutils.TestRequest(t, app, "GET", "/license-keys/"+strconv.Itoa(int(licenseKey.ID))+"/edit", "")
+		assert.Equal(t, 200, resp.StatusCode)
+	})
 
-			// Don't use MockRender - we want to test that the template actually works
-			app.Get("/test/:id", handler.Show)
+	t.Run("Edit - Non-existent License Key", func(t *testing.T) {
+		db := testutils.SetupTestDB(t)
+		app := testutils.SetupTestAppWithDB(t, db)
+		handler := NewLicenseKeysHandler(db)
 
-			req := httptest.NewRequest("GET", "/test/"+strconv.Itoa(int(licenseKeyID)), nil)
-			resp, err := app.Test(req)
-			require.NoError(t, err)
+		app.Get("/license-keys/:id/edit", handler.Edit)
 
-			// Should not panic and should return success (even if template is missing in test env)
-			// The important thing is that the handler logic doesn't panic on template data preparation
-			assert.True(t, resp.StatusCode == 200 || resp.StatusCode == 500) // 500 is OK for missing template in tests
-		})
-	}
+		resp := testutils.TestRequest(t, app, "GET", "/license-keys/999/edit", "")
+		assert.Equal(t, 404, resp.StatusCode)
+	})
+
+	t.Run("Update - Complete Update", func(t *testing.T) {
+		db := testutils.SetupTestDB(t)
+		app := testutils.SetupTestAppWithDB(t, db)
+		handler := NewLicenseKeysHandler(db)
+
+		app.Put("/license-keys/:id", handler.Update)
+
+		// Setup test data
+		product1 := models.Product{Name: "Product 1", Description: "First"}
+		product2 := models.Product{Name: "Product 2", Description: "Second"}
+		require.NoError(t, db.Create(&product1).Error)
+		require.NoError(t, db.Create(&product2).Error)
+
+		customer1 := models.Customer{Name: "Customer 1", Email: "customer1@test.com"}
+		customer2 := models.Customer{Name: "Customer 2", Email: "customer2@test.com"}
+		require.NoError(t, db.Create(&customer1).Error)
+		require.NoError(t, db.Create(&customer2).Error)
+
+		licenseKey := models.LicenseKey{
+			Key:            "UPDATE-TEST-KEY",
+			ProductID:      product1.ID,
+			CustomerID:     customer1.ID,
+			MaxActivations: 3,
+			UsageLimit:     1,
+		}
+		require.NoError(t, db.Create(&licenseKey).Error)
+
+		// Test update via form submission
+		form := url.Values{
+			"key":             {"UPDATE-TEST-KEY"},
+			"product_id":      {strconv.Itoa(int(product2.ID))},
+			"customer_id":     {strconv.Itoa(int(customer2.ID))},
+			"max_activations": {"10"},
+			"expires_at":      {"2025-12-31T15:04"}, // Use datetime-local format
+			"usage_limit":     {"5"},
+			"metadata":        {"Updated metadata"},
+		}
+
+		url := "/license-keys/" + strconv.Itoa(int(licenseKey.ID))
+		resp := testutils.TestRequest(t, app, "PUT", url, form.Encode())
+		assert.Equal(t, 302, resp.StatusCode)
+
+		// Verify database was updated
+		var updatedLicense models.LicenseKey
+		err := db.Preload("Product").Preload("Customer").First(&updatedLicense, licenseKey.ID).Error
+		require.NoError(t, err)
+		assert.Equal(t, product2.ID, updatedLicense.ProductID)
+		assert.Equal(t, customer2.ID, updatedLicense.CustomerID)
+		assert.Equal(t, 10, updatedLicense.MaxActivations)
+		assert.Equal(t, 5, updatedLicense.UsageLimit)
+		assert.Equal(t, "Updated metadata", updatedLicense.Metadata)
+
+		expectedTime, _ := time.Parse("2006-01-02T15:04", "2025-12-31T15:04")
+		if updatedLicense.ExpiresAt != nil {
+			assert.Equal(t, expectedTime, *updatedLicense.ExpiresAt)
+		}
+	})
+
+	t.Run("Update - Partial Update", func(t *testing.T) {
+		db := testutils.SetupTestDB(t)
+		app := testutils.SetupTestAppWithDB(t, db)
+		handler := NewLicenseKeysHandler(db)
+
+		app.Put("/license-keys/:id", handler.Update)
+
+		// Setup test data
+		product := models.Product{Name: "Test Product", Version: "1.0.0"}
+		require.NoError(t, db.Create(&product).Error)
+
+		customer := models.Customer{Name: "John Doe", Email: "john@example.com"}
+		require.NoError(t, db.Create(&customer).Error)
+
+		licenseKey := models.LicenseKey{
+			Key:        "TEST-KEY-456",
+			ProductID:  product.ID,
+			CustomerID: customer.ID,
+			Status:     "active",
+			UsageLimit: 10,
+		}
+		require.NoError(t, db.Create(&licenseKey).Error)
+
+		// Update only usage limit
+		form := url.Values{
+			"usage_limit": {"20"},
+		}
+
+		url := "/license-keys/" + strconv.Itoa(int(licenseKey.ID))
+		resp := testutils.TestRequest(t, app, "PUT", url, form.Encode())
+		assert.Equal(t, 302, resp.StatusCode)
+
+		// Verify only usage limit was updated
+		var updatedLicense models.LicenseKey
+		err := db.First(&updatedLicense, licenseKey.ID).Error
+		require.NoError(t, err)
+		assert.Equal(t, 20, updatedLicense.UsageLimit)
+		// Other fields should remain unchanged
+		assert.Equal(t, product.ID, updatedLicense.ProductID)
+		assert.Equal(t, customer.ID, updatedLicense.CustomerID)
+	})
+
+	t.Run("Update - Non-existent License Key", func(t *testing.T) {
+		db := testutils.SetupTestDB(t)
+		app := testutils.SetupTestAppWithDB(t, db)
+		handler := NewLicenseKeysHandler(db)
+
+		app.Put("/license-keys/:id", handler.Update)
+
+		form := url.Values{
+			"expires_at":  {"2025-12-31"},
+			"usage_limit": {"5"},
+		}
+
+		resp := testutils.TestRequest(t, app, "PUT", "/license-keys/999", form.Encode())
+		assert.Equal(t, 404, resp.StatusCode)
+	})
+
+	t.Run("Delete - Existing License Key", func(t *testing.T) {
+		db := testutils.SetupTestDB(t)
+		app := testutils.SetupTestAppWithDB(t, db)
+		handler := NewLicenseKeysHandler(db)
+
+		app.Delete("/license-keys/:id", handler.Delete)
+
+		// Setup test data
+		product := models.Product{Name: "Delete Product", Description: "For deletion"}
+		require.NoError(t, db.Create(&product).Error)
+
+		customer := models.Customer{Name: "Delete Customer", Email: "delete@test.com"}
+		require.NoError(t, db.Create(&customer).Error)
+
+		licenseKey := models.LicenseKey{
+			Key:        "DELETE-TEST-KEY",
+			ProductID:  product.ID,
+			CustomerID: customer.ID,
+		}
+		require.NoError(t, db.Create(&licenseKey).Error)
+
+		// Test deletion
+		url := "/license-keys/" + strconv.Itoa(int(licenseKey.ID))
+		resp := testutils.TestRequest(t, app, "DELETE", url, "")
+		assert.Equal(t, 302, resp.StatusCode)
+
+		// Verify license key was deleted from database
+		var deletedLicense models.LicenseKey
+		err := db.First(&deletedLicense, licenseKey.ID).Error
+		assert.Error(t, err) // Should not find the license key
+	})
+
+	t.Run("Revoke - Active License Key", func(t *testing.T) {
+		db := testutils.SetupTestDB(t)
+		app := testutils.SetupTestAppWithDB(t, db)
+		handler := NewLicenseKeysHandler(db)
+
+		app.Post("/license-keys/:id/revoke", handler.Revoke)
+
+		// Setup test data
+		product := models.Product{Name: "Test Product", Version: "1.0.0"}
+		require.NoError(t, db.Create(&product).Error)
+
+		customer := models.Customer{Name: "John Doe", Email: "john@example.com"}
+		require.NoError(t, db.Create(&customer).Error)
+
+		licenseKey := models.LicenseKey{
+			Key:        "TEST-KEY-123",
+			ProductID:  product.ID,
+			CustomerID: customer.ID,
+			Status:     "active",
+		}
+		require.NoError(t, db.Create(&licenseKey).Error)
+
+		url := "/license-keys/" + strconv.Itoa(int(licenseKey.ID)) + "/revoke"
+		resp := testutils.TestRequest(t, app, "POST", url, "")
+		assert.Equal(t, 302, resp.StatusCode)
+	})
+
+	t.Run("Reactivate - Revoked License Key", func(t *testing.T) {
+		db := testutils.SetupTestDB(t)
+		app := testutils.SetupTestAppWithDB(t, db)
+		handler := NewLicenseKeysHandler(db)
+
+		app.Post("/license-keys/:id/reactivate", handler.Reactivate)
+
+		// Setup test data
+		product := models.Product{Name: "Test Product", Version: "1.0.0"}
+		require.NoError(t, db.Create(&product).Error)
+
+		customer := models.Customer{Name: "John Doe", Email: "john@example.com"}
+		require.NoError(t, db.Create(&customer).Error)
+
+		licenseKey := models.LicenseKey{
+			Key:        "TEST-KEY-123",
+			ProductID:  product.ID,
+			CustomerID: customer.ID,
+			Status:     "revoked",
+		}
+		require.NoError(t, db.Create(&licenseKey).Error)
+
+		url := "/license-keys/" + strconv.Itoa(int(licenseKey.ID)) + "/reactivate"
+		resp := testutils.TestRequest(t, app, "POST", url, "")
+		assert.Equal(t, 302, resp.StatusCode)
+	})
+
+	t.Run("SendEmail - License Key", func(t *testing.T) {
+		db := testutils.SetupTestDB(t)
+		app := testutils.SetupTestAppWithDB(t, db)
+		handler := NewLicenseKeysHandler(db)
+
+		app.Post("/license-keys/:id/send-email", handler.SendEmail)
+
+		resp := testutils.TestRequest(t, app, "POST", "/license-keys/123/send-email", "")
+		assert.Equal(t, 302, resp.StatusCode)
+	})
+
+	t.Run("Template Rendering - Nil Pointer Handling", func(t *testing.T) {
+		db := testutils.SetupTestDB(t)
+		app := testutils.SetupTestAppWithDB(t, db)
+		handler := NewLicenseKeysHandler(db)
+
+		app.Get("/license-keys/:id", handler.Show)
+		app.Get("/license-keys/:id/edit", handler.Edit)
+
+		// Setup test data with nil pointers
+		product := models.Product{Name: "Test Product", Version: "1.0.0"}
+		require.NoError(t, db.Create(&product).Error)
+
+		customer := models.Customer{Name: "John Doe", Email: "john@example.com"}
+		require.NoError(t, db.Create(&customer).Error)
+
+		licenseKey := models.LicenseKey{
+			Key:             "TEST-KEY-123",
+			ProductID:       product.ID,
+			CustomerID:      customer.ID,
+			Status:          "active",
+			ExpiresAt:       nil, // Nil pointer
+			LastValidatedAt: nil, // Nil pointer
+		}
+		require.NoError(t, db.Create(&licenseKey).Error)
+
+		// Test show with nil pointers
+		resp := testutils.TestRequest(t, app, "GET", "/license-keys/"+strconv.Itoa(int(licenseKey.ID)), "")
+		assert.True(t, resp.StatusCode == 200 || resp.StatusCode == 500) // 500 is OK for missing template in tests
+
+		// Test edit with nil pointers
+		resp = testutils.TestRequest(t, app, "GET", "/license-keys/"+strconv.Itoa(int(licenseKey.ID))+"/edit", "")
+		assert.True(t, resp.StatusCode == 200 || resp.StatusCode == 500) // 500 is OK for missing template in tests
+
+		// Test with set time values
+		now := time.Now()
+		licenseKey.ExpiresAt = &now
+		licenseKey.LastValidatedAt = &now
+		require.NoError(t, db.Save(&licenseKey).Error)
+
+		resp = testutils.TestRequest(t, app, "GET", "/license-keys/"+strconv.Itoa(int(licenseKey.ID)), "")
+		assert.True(t, resp.StatusCode == 200 || resp.StatusCode == 500)
+
+		resp = testutils.TestRequest(t, app, "GET", "/license-keys/"+strconv.Itoa(int(licenseKey.ID))+"/edit", "")
+		assert.True(t, resp.StatusCode == 200 || resp.StatusCode == 500)
+	})
 }

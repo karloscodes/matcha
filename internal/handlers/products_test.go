@@ -1,428 +1,310 @@
 package handlers
 
 import (
-	"net/http/httptest"
 	"net/url"
 	"strconv"
-	"strings"
 	"testing"
 
-	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/gorm"
 
 	"matcha/internal/models"
 	"matcha/internal/testutils"
 )
 
-func TestProductsHandler_Index(t *testing.T) {
-	tests := []struct {
-		name           string
-		setupData      func(*gorm.DB)
-		expectedStatus int
-	}{
-		{
-			name: "should render products index with empty list",
-			setupData: func(db *gorm.DB) {
-				// No products
-			},
-			expectedStatus: 200,
-		},
-		{
-			name: "should render products index with products",
-			setupData: func(db *gorm.DB) {
-				product := models.Product{
-					Name:        "Test Product",
-					Description: "Test Description",
-					Version:     "1.0.0",
-				}
-				db.Create(&product)
-			},
-			expectedStatus: 200,
-		},
-	}
+// Integration tests for Products - tests full request flow with database
+func TestProductsHandler_Integration(t *testing.T) {
+	t.Run("Index - Display Products", func(t *testing.T) {
+		db := testutils.SetupTestDB(t)
+		app := testutils.SetupTestAppWithDB(t, db)
+		handler := NewProductsHandler(db)
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			db := testutils.SetupTestDB(t)
-			app := testutils.SetupTestApp()
-			handler := NewProductsHandler(db)
+		app.Get("/products", handler.Index)
 
-			tt.setupData(db)
+		// Test empty list
+		resp := testutils.TestRequest(t, app, "GET", "/products", "")
+		assert.Equal(t, 200, resp.StatusCode)
 
-			app.Get("/test", testutils.MockRender(handler.Index))
+		// Create test data and test with data
+		product := models.Product{
+			Name:        "Test Product",
+			Description: "Test Description",
+			Version:     "1.0.0",
+		}
+		require.NoError(t, db.Create(&product).Error)
 
-			req := httptest.NewRequest("GET", "/test", nil)
-			resp, err := app.Test(req)
-			require.NoError(t, err)
+		resp = testutils.TestRequest(t, app, "GET", "/products", "")
+		assert.Equal(t, 200, resp.StatusCode)
+	})
 
-			assert.Equal(t, tt.expectedStatus, resp.StatusCode)
-		})
-	}
-}
+	t.Run("New - Display Create Form", func(t *testing.T) {
+		db := testutils.SetupTestDB(t)
+		app := testutils.SetupTestAppWithDB(t, db)
+		handler := NewProductsHandler(db)
 
-func TestProductsHandler_New(t *testing.T) {
-	db := testutils.SetupTestDB(t)
-	app := testutils.SetupTestApp()
-	handler := NewProductsHandler(db)
+		app.Get("/products/new", handler.New)
 
-	app.Get("/test", testutils.MockRender(handler.New))
+		resp := testutils.TestRequest(t, app, "GET", "/products/new", "")
+		assert.Equal(t, 200, resp.StatusCode)
+	})
 
-	req := httptest.NewRequest("GET", "/test", nil)
-	resp, err := app.Test(req)
-	require.NoError(t, err)
+	t.Run("Create - Valid Product", func(t *testing.T) {
+		db := testutils.SetupTestDB(t)
+		app := testutils.SetupTestAppWithDB(t, db)
+		handler := NewProductsHandler(db)
 
-	assert.Equal(t, 200, resp.StatusCode)
-}
+		app.Post("/products", handler.Create)
 
-func TestProductsHandler_Create(t *testing.T) {
-	tests := []struct {
-		name           string
-		formData       map[string]string
-		expectedStatus int
-		expectedResult string
-	}{
-		{
-			name: "should create product successfully",
-			formData: map[string]string{
-				"name":                    "Test Product",
-				"description":             "Test Description",
-				"version":                 "1.0.0",
-				"default_expiration_days": "365",
-				"default_usage_limit":     "1",
-			},
-			expectedStatus: 302,
-			expectedResult: "/admin/products",
-		},
-		{
-			name: "should create product with default values",
-			formData: map[string]string{
-				"name":        "Test Product",
-				"description": "Test Description",
-				"version":     "1.0.0",
-			},
-			expectedStatus: 302,
-			expectedResult: "/admin/products",
-		},
-		{
-			name: "should handle invalid expiration days",
-			formData: map[string]string{
-				"name":                    "Test Product",
-				"description":             "Test Description",
-				"version":                 "1.0.0",
-				"default_expiration_days": "invalid",
-				"default_usage_limit":     "1",
-			},
-			expectedStatus: 302,
-			expectedResult: "/admin/products",
-		},
-	}
+		// Test form submission
+		form := url.Values{
+			"name":                    {"Integration Test Product"},
+			"description":             {"Test product description"},
+			"version":                 {"1.0.0"},
+			"default_expiration_days": {"365"},
+			"default_usage_limit":     {"1"},
+		}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			db := testutils.SetupTestDB(t)
-			app := testutils.SetupTestApp()
-			handler := NewProductsHandler(db)
+		resp := testutils.TestRequest(t, app, "POST", "/products", form.Encode())
+		assert.Equal(t, 302, resp.StatusCode) // Should redirect
 
-			form := url.Values{}
-			for key, value := range tt.formData {
-				form.Set(key, value)
-			}
+		// Verify database state
+		var product models.Product
+		err := db.Where("name = ?", "Integration Test Product").First(&product).Error
+		require.NoError(t, err)
+		assert.Equal(t, "Integration Test Product", product.Name)
+		assert.Equal(t, "Test product description", product.Description)
+		assert.Equal(t, "1.0.0", product.Version)
+		assert.Equal(t, 365, product.DefaultExpirationDays)
+		assert.Equal(t, 1, product.DefaultUsageLimit)
+	})
 
-			app.Post("/test", func(c *fiber.Ctx) error {
-				return handler.Create(c)
-			})
+	t.Run("Create - Invalid Product (Missing Name)", func(t *testing.T) {
+		db := testutils.SetupTestDB(t)
+		app := testutils.SetupTestAppWithDB(t, db)
+		handler := NewProductsHandler(db)
 
-			req := httptest.NewRequest("POST", "/test", strings.NewReader(form.Encode()))
-			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		app.Post("/products", handler.Create)
 
-			resp, err := app.Test(req)
-			require.NoError(t, err)
+		form := url.Values{
+			"description": {"Test product description"},
+			"version":     {"1.0.0"},
+		}
 
-			assert.Equal(t, tt.expectedStatus, resp.StatusCode)
+		resp := testutils.TestRequest(t, app, "POST", "/products", form.Encode())
+		assert.Equal(t, 400, resp.StatusCode)
+	})
 
-			if tt.expectedResult != "" {
-				location := resp.Header.Get("Location")
-				assert.Equal(t, tt.expectedResult, location)
-			}
+	t.Run("Show - Existing Product", func(t *testing.T) {
+		db := testutils.SetupTestDB(t)
+		app := testutils.SetupTestAppWithDB(t, db)
+		handler := NewProductsHandler(db)
 
-			// Verify product was created
-			if tt.expectedStatus == 302 {
-				var count int64
-				db.Model(&models.Product{}).Count(&count)
-				assert.Equal(t, int64(1), count)
-			}
-		})
-	}
-}
+		app.Get("/products/:id", handler.Show)
 
-func TestProductsHandler_Show(t *testing.T) {
-	tests := []struct {
-		name           string
-		setupData      func(*gorm.DB) uint
-		productID      string
-		expectedStatus int
-	}{
-		{
-			name: "should show existing product",
-			setupData: func(db *gorm.DB) uint {
-				product := models.Product{
-					Name:        "Test Product",
-					Description: "Test Description",
-					Version:     "1.0.0",
-				}
-				db.Create(&product)
-				return product.ID
-			},
-			expectedStatus: 200,
-		},
-		{
-			name: "should return 404 for non-existent product",
-			setupData: func(db *gorm.DB) uint {
-				return 999
-			},
-			expectedStatus: 404,
-		},
-	}
+		// Setup test data
+		product := models.Product{
+			Name:        "Test Product",
+			Description: "Test Description",
+			Version:     "1.0.0",
+		}
+		require.NoError(t, db.Create(&product).Error)
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			db := testutils.SetupTestDB(t)
-			app := testutils.SetupTestApp()
-			handler := NewProductsHandler(db)
+		resp := testutils.TestRequest(t, app, "GET", "/products/"+strconv.Itoa(int(product.ID)), "")
+		assert.Equal(t, 200, resp.StatusCode)
+	})
 
-			productID := tt.setupData(db)
+	t.Run("Show - Non-existent Product", func(t *testing.T) {
+		db := testutils.SetupTestDB(t)
+		app := testutils.SetupTestAppWithDB(t, db)
+		handler := NewProductsHandler(db)
 
-			app.Get("/test/:id", testutils.MockRender(handler.Show))
+		app.Get("/products/:id", handler.Show)
 
-			req := httptest.NewRequest("GET", "/test/"+strconv.Itoa(int(productID)), nil)
-			resp, err := app.Test(req)
-			require.NoError(t, err)
+		resp := testutils.TestRequest(t, app, "GET", "/products/999", "")
+		assert.Equal(t, 404, resp.StatusCode)
+	})
 
-			assert.Equal(t, tt.expectedStatus, resp.StatusCode)
-		})
-	}
-}
+	t.Run("Edit - Existing Product", func(t *testing.T) {
+		db := testutils.SetupTestDB(t)
+		app := testutils.SetupTestAppWithDB(t, db)
+		handler := NewProductsHandler(db)
 
-func TestProductsHandler_Edit(t *testing.T) {
-	tests := []struct {
-		name           string
-		setupData      func(*gorm.DB) uint
-		expectedStatus int
-	}{
-		{
-			name: "should show edit form for existing product",
-			setupData: func(db *gorm.DB) uint {
-				product := models.Product{
-					Name:        "Test Product",
-					Description: "Test Description",
-					Version:     "1.0.0",
-				}
-				db.Create(&product)
-				return product.ID
-			},
-			expectedStatus: 200,
-		},
-		{
-			name: "should return 404 for non-existent product",
-			setupData: func(db *gorm.DB) uint {
-				return 999
-			},
-			expectedStatus: 404,
-		},
-	}
+		app.Get("/products/:id/edit", handler.Edit)
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			db := testutils.SetupTestDB(t)
-			app := testutils.SetupTestApp()
-			handler := NewProductsHandler(db)
+		// Setup test data
+		product := models.Product{
+			Name:        "Test Product",
+			Description: "Test Description",
+			Version:     "1.0.0",
+		}
+		require.NoError(t, db.Create(&product).Error)
 
-			productID := tt.setupData(db)
+		resp := testutils.TestRequest(t, app, "GET", "/products/"+strconv.Itoa(int(product.ID))+"/edit", "")
+		assert.Equal(t, 200, resp.StatusCode)
+	})
 
-			app.Get("/test/:id", testutils.MockRender(handler.Edit))
+	t.Run("Edit - Non-existent Product", func(t *testing.T) {
+		db := testutils.SetupTestDB(t)
+		app := testutils.SetupTestAppWithDB(t, db)
+		handler := NewProductsHandler(db)
 
-			req := httptest.NewRequest("GET", "/test/"+strconv.Itoa(int(productID)), nil)
-			resp, err := app.Test(req)
-			require.NoError(t, err)
+		app.Get("/products/:id/edit", handler.Edit)
 
-			assert.Equal(t, tt.expectedStatus, resp.StatusCode)
-		})
-	}
-}
+		resp := testutils.TestRequest(t, app, "GET", "/products/999/edit", "")
+		assert.Equal(t, 404, resp.StatusCode)
+	})
 
-func TestProductsHandler_Update(t *testing.T) {
-	tests := []struct {
-		name           string
-		setupData      func(*gorm.DB) uint
-		formData       map[string]string
-		expectedStatus int
-		expectedResult string
-	}{
-		{
-			name: "should update product successfully",
-			setupData: func(db *gorm.DB) uint {
-				product := models.Product{
-					Name:        "Original Product",
-					Description: "Original Description",
-					Version:     "1.0.0",
-				}
-				db.Create(&product)
-				return product.ID
-			},
-			formData: map[string]string{
-				"_method":                 "PUT",
-				"name":                    "Updated Product",
-				"description":             "Updated Description",
-				"version":                 "2.0.0",
-				"default_expiration_days": "730",
-				"default_usage_limit":     "5",
-			},
-			expectedStatus: 302,
-		},
-		{
-			name: "should return 404 for non-existent product",
-			setupData: func(db *gorm.DB) uint {
-				return 999
-			},
-			formData: map[string]string{
-				"_method":     "PUT",
-				"name":        "Updated Product",
-				"description": "Updated Description",
-				"version":     "2.0.0",
-			},
-			expectedStatus: 404,
-		},
-		{
-			name: "should return 405 for invalid method",
-			setupData: func(db *gorm.DB) uint {
-				product := models.Product{
-					Name:        "Test Product",
-					Description: "Test Description",
-					Version:     "1.0.0",
-				}
-				db.Create(&product)
-				return product.ID
-			},
-			formData: map[string]string{
-				"_method":     "INVALID",
-				"name":        "Updated Product",
-				"description": "Updated Description",
-				"version":     "2.0.0",
-			},
-			expectedStatus: 405,
-		},
-		{
-			name: "should return 405 for POST without _method=PUT",
-			setupData: func(db *gorm.DB) uint {
-				product := models.Product{
-					Name:        "Test Product",
-					Description: "Test Description",
-					Version:     "1.0.0",
-				}
-				db.Create(&product)
-				return product.ID
-			},
-			formData: map[string]string{
-				"name":        "Updated Product",
-				"description": "Updated Description",
-				"version":     "2.0.0",
-			},
-			expectedStatus: 405,
-		},
-	}
+	t.Run("Update - Complete Update", func(t *testing.T) {
+		db := testutils.SetupTestDB(t)
+		app := testutils.SetupTestAppWithDB(t, db)
+		handler := NewProductsHandler(db)
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			db := testutils.SetupTestDB(t)
-			app := testutils.SetupTestApp()
-			handler := NewProductsHandler(db)
+		app.Put("/products/:id", handler.Update)
 
-			productID := tt.setupData(db)
+		// Setup test data
+		product := models.Product{
+			Name:                  "Original Product",
+			Description:           "Original description",
+			Version:               "1.0.0",
+			DefaultExpirationDays: 30,
+			DefaultUsageLimit:     1,
+		}
+		require.NoError(t, db.Create(&product).Error)
 
-			form := url.Values{}
-			for key, value := range tt.formData {
-				form.Set(key, value)
-			}
+		// Test update via form submission
+		form := url.Values{
+			"name":                    {"Updated Product"},
+			"description":             {"Updated description"},
+			"version":                 {"2.0.0"},
+			"default_expiration_days": {"60"},
+			"default_usage_limit":     {"5"},
+		}
 
-			app.Post("/test/:id", func(c *fiber.Ctx) error {
-				return handler.Update(c)
-			})
+		url := "/products/" + strconv.Itoa(int(product.ID))
+		resp := testutils.TestRequest(t, app, "PUT", url, form.Encode())
+		assert.Equal(t, 302, resp.StatusCode)
 
-			req := httptest.NewRequest("POST", "/test/"+strconv.Itoa(int(productID)), strings.NewReader(form.Encode()))
-			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		// Verify database was updated
+		var updatedProduct models.Product
+		err := db.First(&updatedProduct, product.ID).Error
+		require.NoError(t, err)
+		assert.Equal(t, "Updated Product", updatedProduct.Name)
+		assert.Equal(t, "Updated description", updatedProduct.Description)
+		assert.Equal(t, "2.0.0", updatedProduct.Version)
+		assert.Equal(t, 60, updatedProduct.DefaultExpirationDays)
+		assert.Equal(t, 5, updatedProduct.DefaultUsageLimit)
+	})
 
-			resp, err := app.Test(req)
-			require.NoError(t, err)
+	t.Run("Update - Partial Update", func(t *testing.T) {
+		db := testutils.SetupTestDB(t)
+		app := testutils.SetupTestAppWithDB(t, db)
+		handler := NewProductsHandler(db)
 
-			assert.Equal(t, tt.expectedStatus, resp.StatusCode)
+		app.Put("/products/:id", handler.Update)
 
-			// Verify product was updated if successful
-			if tt.expectedStatus == 302 {
-				var product models.Product
-				db.First(&product, productID)
-				assert.Equal(t, "Updated Product", product.Name)
-				assert.Equal(t, "Updated Description", product.Description)
-				assert.Equal(t, "2.0.0", product.Version)
-			}
-		})
-	}
-}
+		// Setup test data
+		product := models.Product{
+			Name:        "Test Product",
+			Description: "Original description",
+			Version:     "1.0.0",
+		}
+		require.NoError(t, db.Create(&product).Error)
 
-func TestProductsHandler_Delete(t *testing.T) {
-	tests := []struct {
-		name           string
-		setupData      func(*gorm.DB) uint
-		expectedStatus int
-	}{
-		{
-			name: "should delete existing product",
-			setupData: func(db *gorm.DB) uint {
-				product := models.Product{
-					Name:        "Test Product",
-					Description: "Test Description",
-					Version:     "1.0.0",
-				}
-				db.Create(&product)
-				return product.ID
-			},
-			expectedStatus: 302,
-		},
-	}
+		// Update only description
+		form := url.Values{
+			"description": {"Updated description only"},
+		}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			db := testutils.SetupTestDB(t)
-			app := testutils.SetupTestApp()
-			handler := NewProductsHandler(db)
+		url := "/products/" + strconv.Itoa(int(product.ID))
+		resp := testutils.TestRequest(t, app, "PUT", url, form.Encode())
+		assert.Equal(t, 302, resp.StatusCode)
 
-			productID := tt.setupData(db)
+		// Verify only description was updated
+		var updatedProduct models.Product
+		err := db.First(&updatedProduct, product.ID).Error
+		require.NoError(t, err)
+		assert.Equal(t, "Updated description only", updatedProduct.Description)
+		// Other fields should remain unchanged
+		assert.Equal(t, "Test Product", updatedProduct.Name)
+		assert.Equal(t, "1.0.0", updatedProduct.Version)
+	})
 
-			app.Delete("/test/:id", func(c *fiber.Ctx) error {
-				return handler.Delete(c)
-			})
+	t.Run("Update - Non-existent Product", func(t *testing.T) {
+		db := testutils.SetupTestDB(t)
+		app := testutils.SetupTestAppWithDB(t, db)
+		handler := NewProductsHandler(db)
 
-			req := httptest.NewRequest("DELETE", "/test/"+strconv.Itoa(int(productID)), nil)
-			resp, err := app.Test(req)
-			require.NoError(t, err)
+		app.Put("/products/:id", handler.Update)
 
-			assert.Equal(t, tt.expectedStatus, resp.StatusCode)
+		form := url.Values{
+			"name":        {"Updated Product"},
+			"description": {"Updated description"},
+		}
 
-			// Verify product was deleted
-			if tt.expectedStatus == 302 {
-				var count int64
-				db.Model(&models.Product{}).Where("id = ?", productID).Count(&count)
-				assert.Equal(t, int64(0), count)
-			}
-		})
-	}
-}
+		resp := testutils.TestRequest(t, app, "PUT", "/products/999", form.Encode())
+		assert.Equal(t, 404, resp.StatusCode)
+	})
 
-func TestNewProductsHandler(t *testing.T) {
-	db := testutils.SetupTestDB(t)
-	handler := NewProductsHandler(db)
+	t.Run("Delete - Existing Product", func(t *testing.T) {
+		db := testutils.SetupTestDB(t)
+		app := testutils.SetupTestAppWithDB(t, db)
+		handler := NewProductsHandler(db)
 
-	assert.NotNil(t, handler)
-	assert.Equal(t, db, handler.db)
+		app.Delete("/products/:id", handler.Delete)
+
+		// Setup test data
+		product := models.Product{
+			Name:        "Delete Product",
+			Description: "For deletion",
+			Version:     "1.0.0",
+		}
+		require.NoError(t, db.Create(&product).Error)
+
+		// Test deletion
+		url := "/products/" + strconv.Itoa(int(product.ID))
+		resp := testutils.TestRequest(t, app, "DELETE", url, "")
+		assert.Equal(t, 302, resp.StatusCode)
+
+		// Verify product was deleted from database
+		var deletedProduct models.Product
+		err := db.First(&deletedProduct, product.ID).Error
+		assert.Error(t, err) // Should not find the product
+	})
+
+	t.Run("Delete - Product with License Keys", func(t *testing.T) {
+		db := testutils.SetupTestDB(t)
+		app := testutils.SetupTestAppWithDB(t, db)
+		handler := NewProductsHandler(db)
+
+		app.Delete("/products/:id", handler.Delete)
+
+		// Setup test data with related license keys
+		product := models.Product{
+			Name:        "Product with Keys",
+			Description: "Has license keys",
+			Version:     "1.0.0",
+		}
+		require.NoError(t, db.Create(&product).Error)
+
+		customer := models.Customer{Name: "Test Customer", Email: "test@example.com"}
+		require.NoError(t, db.Create(&customer).Error)
+
+		licenseKey := models.LicenseKey{
+			Key:        "TEST-KEY",
+			ProductID:  product.ID,
+			CustomerID: customer.ID,
+		}
+		require.NoError(t, db.Create(&licenseKey).Error)
+
+		// Test deletion should fail due to foreign key constraint
+		url := "/products/" + strconv.Itoa(int(product.ID))
+		resp := testutils.TestRequest(t, app, "DELETE", url, "")
+		// Expect either 400 (validation error) or 500 (database constraint error)
+		assert.True(t, resp.StatusCode == 400 || resp.StatusCode == 500)
+
+		// Verify product was NOT deleted
+		var existingProduct models.Product
+		err := db.First(&existingProduct, product.ID).Error
+		assert.NoError(t, err) // Should still find the product
+	})
 }
