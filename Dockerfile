@@ -7,7 +7,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install Node dependencies
-RUN npm ci --only=production
+RUN npm ci
 
 # Copy source files needed for CSS build
 COPY . .
