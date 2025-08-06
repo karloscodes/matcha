@@ -1,0 +1,17 @@
+{
+  "name": "matcha",
+  "version": "1.0.0",
+  "description": "Matcha - A self-hosted license key management system similar to Gumroad's license functionality, built with Go, GoFiber, GORM, and SQLite.",
+  "main": "index.js",
+  "scripts": {
+    "build-css": "npx tailwindcss -i ./assets/css/input.css -o ./static/css/styles.css --watch",
+    "build-css-prod": "npx tailwindcss -i ./assets/css/input.css -o ./static/css/styles.css --minify",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "devDependencies": {
+    "@tailwindcss/forms": "^0.5.10",
+    "tailwindcss": "^3.4.0"
+  }
+}

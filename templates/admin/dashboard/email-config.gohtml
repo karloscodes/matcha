@@ -1,0 +1,91 @@
+<div class="max-w-2xl mx-auto">
+  <div class="mb-8">
+    <h1 class="text-3xl font-bold text-gray-900">Email Configuration</h1>
+    <p class="mt-2 text-gray-600">Configure SMTP settings for sending license key emails</p>
+  </div>
+
+  {{if .Error}}
+  <div class="mb-4 bg-yellow-100 border border-yellow-400 text-yellow-800 px-4 py-3 rounded relative" role="alert">
+    <span class="block sm:inline">{{.Error}}</span>
+  </div>
+  {{end}}
+
+  {{if .Success}}
+  <div class="mb-4 bg-lime-100 border border-lime-400 text-lime-800 px-4 py-3 rounded relative" role="alert">
+    <span class="block sm:inline">{{.Success}}</span>
+  </div>
+  {{end}}
+
+  <div class="bg-white shadow rounded-lg p-6">
+    <form method="POST" action="/admin/email-config">
+      <input type="hidden" name="_token" value="{{.CSRFToken}}">
+
+      <div class="grid grid-cols-1 gap-6">
+        <div>
+          <label for="smtp_host" class="block text-sm font-medium text-gray-700">SMTP Host *</label>
+          <input type="text" name="smtp_host" id="smtp_host" required
+            class="mt-1 focus:ring-gray-500 focus:border-gray-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+            placeholder="smtp.gmail.com" value="{{.Config.SMTPHost}}">
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label for="smtp_port" class="block text-sm font-medium text-gray-700">SMTP Port *</label>
+            <input type="number" name="smtp_port" id="smtp_port" required
+              class="mt-1 focus:ring-gray-500 focus:border-gray-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+              placeholder="587" value="{{.Config.SMTPPort}}">
+          </div>
+
+          <div>
+            <label for="smtp_encryption" class="block text-sm font-medium text-gray-700">Encryption</label>
+            <select name="smtp_encryption" id="smtp_encryption"
+              class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm">
+              <option value="tls" {{if eq .Config.SMTPEncryption "tls" }}selected{{end}}>TLS</option>
+              <option value="ssl" {{if eq .Config.SMTPEncryption "ssl" }}selected{{end}}>SSL</option>
+              <option value="none" {{if eq .Config.SMTPEncryption "none" }}selected{{end}}>None</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label for="smtp_username" class="block text-sm font-medium text-gray-700">SMTP Username *</label>
+          <input type="text" name="smtp_username" id="smtp_username" required
+            class="mt-1 focus:ring-gray-500 focus:border-gray-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+            placeholder="your-email@gmail.com" value="{{.Config.SMTPUsername}}">
+        </div>
+
+        <div>
+          <label for="smtp_password" class="block text-sm font-medium text-gray-700">SMTP Password *</label>
+          <input type="password" name="smtp_password" id="smtp_password" required
+            class="mt-1 focus:ring-gray-500 focus:border-gray-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+            placeholder="your-app-password" value="{{.Config.SMTPPassword}}">
+        </div>
+
+        <div>
+          <label for="from_email" class="block text-sm font-medium text-gray-700">From Email *</label>
+          <input type="email" name="from_email" id="from_email" required
+            class="mt-1 focus:ring-gray-500 focus:border-gray-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+            placeholder="noreply@yourcompany.com" value="{{.Config.FromEmail}}">
+        </div>
+
+        <div>
+          <label for="from_name" class="block text-sm font-medium text-gray-700">From Name</label>
+          <input type="text" name="from_name" id="from_name"
+            class="mt-1 focus:ring-gray-500 focus:border-gray-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+            placeholder="Your Company" value="{{.Config.FromName}}">
+        </div>
+      </div>
+
+      <div class="mt-6 flex items-center justify-between">
+        <a href="/admin"
+          class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+          Back to Dashboard
+        </a>
+        <button type="submit"
+          class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-gray-800 hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+          Save Configuration
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

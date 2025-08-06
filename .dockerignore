@@ -1,0 +1,45 @@
+# Git
+.git/
+.gitignore
+
+# Documentation
+README.md
+*.md
+
+# Development files
+.env
+.env.local
+.env.example
+.vscode/
+.idea/
+
+# Build artifacts
+bin/
+dist/
+tmp/
+build-errors.log
+
+# Database files (for development)
+db/*.db
+db/*.db-*
+
+# Node modules (will be installed in container)
+node_modules/
+
+# Go build cache
+*.out
+coverage.html
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.log

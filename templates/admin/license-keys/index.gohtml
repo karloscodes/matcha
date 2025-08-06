@@ -1,0 +1,152 @@
+{{template "layouts/base" .}}
+
+{{define "license-keys-index-content"}}
+<div class="flex justify-between items-center mb-8">
+  <h1 class="text-3xl font-bold text-gray-900">License Keys</h1>
+  <a href="/admin/license-keys/new"
+    class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-gray-800 hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+    <svg class="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+    </svg>
+    New License Key
+  </a>
+</div>
+
+<div class="bg-white shadow rounded-lg">
+  {{if .LicenseKeys}}
+  <div class="overflow-hidden">
+    <table class="min-w-full divide-y divide-gray-200">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Key</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Product</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Customer</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Status</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Expires</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Created</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Actions</th>
+        </tr>
+      </thead>
+      <tbody class="bg-white divide-y divide-gray-200">
+        {{range .LicenseKeys}}
+        <tr class="hover:bg-gray-50">
+          <td class="px-6 py-4 whitespace-nowrap">
+            <code class="text-sm font-mono text-gray-900 bg-gray-100 px-2 py-1 rounded">{{.Key}}</code>
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{.Product.Name}}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{.Customer.Email}}</td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full {{if eq .Status "active"}}bg-lime-100 text-lime-800{{else if eq .Status "expired"}}bg-yellow-100 text-yellow-800{{else}}bg-gray-100 text-gray-800{{end}}">
+              {{.Status}}
+            </span>
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+            {{if .ExpiresAt}}{{.ExpiresAt.Format "01/02/2006"}}{{else}}Never{{end}}
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{.CreatedAt.Format "01/02/2006"}}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+            <a href="/admin/license-keys/{{.ID}}" class="text-gray-600 hover:text-blue-900 mr-3">View</a>
+            <a href="/admin/license-keys/{{.ID}}/edit" class="text-yellow-600 hover:text-yellow-900 mr-3">Edit</a>
+            {{if eq .Status "active"}}
+            <button onclick="revokeLicense({{.ID}})" class="text-red-600 hover:text-red-900">Revoke</button>
+            {{else if eq .Status "revoked"}}
+            <button onclick="reactivateLicense({{.ID}})" class="text-green-600 hover:text-green-900">Reactivate</button>
+            {{end}}
+          </td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+  {{else}}
+  <div class="text-center py-12">
+    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+        d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1721 9z">
+      </path>
+    </svg>
+    <h3 class="mt-2 text-sm font-medium text-gray-900">No license keys</h3>
+    <p class="mt-1 text-sm text-gray-500">Get started by creating your first license key.</p>
+    <div class="mt-6">
+      <a href="/admin/license-keys/new"
+        class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-gray-800 hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+        <svg class="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6">
+          </path>
+        </svg>
+        New License Key
+      </a>
+    </div>
+  </div>
+  {{end}}
+</div>
+</div>
+
+<script>
+  function toggleDropdown() {
+    const dropdown = document.getElementById('dropdown');
+    dropdown.classList.toggle('hidden');
+  }
+
+  // Close dropdown when clicking outside
+  document.addEventListener('click', function (event) {
+    const dropdown = document.getElementById('dropdown');
+    const button = event.target.closest('button');
+
+    if (!button && dropdown && !dropdown.classList.contains('hidden')) {
+      dropdown.classList.add('hidden');
+    }
+  });
+
+  function revokeLicense(id) {
+    if (confirm('Are you sure you want to revoke this license key?')) {
+      fetch(`/admin/license-keys/${id}/revoke`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+        .then(response => {
+          if (response.ok) {
+            location.reload();
+          } else {
+            alert('Failed to revoke license key');
+          }
+        })
+        .catch(error => {
+          alert('Error revoking license key');
+          console.error('Error:', error);
+        });
+    }
+  }
+
+  function reactivateLicense(id) {
+    if (confirm('Are you sure you want to reactivate this license key?')) {
+      fetch(`/admin/license-keys/${id}/reactivate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+        .then(response => {
+          if (response.ok) {
+            location.reload();
+          } else {
+            alert('Failed to reactivate license key');
+          }
+        })
+        .catch(error => {
+          alert('Error reactivating license key');
+          console.error('Error:', error);
+        });
+    }
+  }
+</script>
+{{end}}

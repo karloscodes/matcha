@@ -1,0 +1,58 @@
+{{template "layouts/base" .}}
+
+{{define "products-new-content"}}
+<div class="mb-8">
+  <nav class="flex" aria-label="Breadcrumb">
+    <ol class="flex items-center space-x-4">
+      <li>
+        <a href="/admin/products" class="text-gray-400 hover:text-gray-500">
+          <span>Products</span>
+        </a>
+      </li>
+      <li>
+        <div class="flex items-center">
+          <svg class="flex-shrink-0 h-5 w-5 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd"
+              d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+              clip-rule="evenodd"></path>
+          </svg>
+          <span class="ml-4 text-gray-500">New Product</span>
+        </div>
+      </li>
+    </ol>
+  </nav>
+</div>
+
+{{if .Error}}
+<div class="mb-4 bg-yellow-100 border border-yellow-400 text-yellow-800 px-4 py-3 rounded relative" role="alert">
+  <span class="block sm:inline">{{.Error}}</span>
+</div>
+{{end}}
+
+<div class="bg-white shadow rounded-lg">
+  <div class="px-6 py-4 border-b border-gray-200">
+    <h1 class="text-2xl font-bold text-gray-900">New Product</h1>
+  </div>
+  <div class="p-6">
+    {{template "admin/products/_form" dict "FormAction" "/admin/products" "Product" nil "CSRFToken" .CSRFToken}}
+  </div>
+</div>
+</div>
+
+<script>
+  function toggleDropdown() {
+    const dropdown = document.getElementById('dropdown');
+    dropdown.classList.toggle('hidden');
+  }
+
+  // Close dropdown when clicking outside
+  document.addEventListener('click', function (event) {
+    const dropdown = document.getElementById('dropdown');
+    const button = event.target.closest('button');
+
+    if (!button && dropdown && !dropdown.classList.contains('hidden')) {
+      dropdown.classList.add('hidden');
+    }
+  });
+</script>
+{{end}}

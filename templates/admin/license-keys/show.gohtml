@@ -1,0 +1,108 @@
+{{template "layouts/base" .}}
+
+{{define "license-keys-show-content"}}
+<div class="mb-8">
+  <nav class="flex" aria-label="Breadcrumb">
+    <ol class="flex items-center space-x-4">
+      <li>
+        <a href="/admin/license-keys" class="text-gray-400 hover:text-gray-500">
+          <span>License Keys</span>
+        </a>
+      </li>
+      <li>
+        <div class="flex items-center">
+          <svg class="flex-shrink-0 h-5 w-5 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd"
+              d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+              clip-rule="evenodd"></path>
+          </svg>
+          <span class="ml-4 text-gray-500">{{.LicenseKey.Key}}</span>
+        </div>
+      </li>
+    </ol>
+  </nav>
+</div>
+
+<div class="bg-white shadow rounded-lg">
+  <div class="px-6 py-4 border-b border-gray-200">
+    <div class="flex justify-between items-center">
+      <h1 class="text-2xl font-bold text-gray-900">License Key</h1>
+      <div class="flex space-x-3">
+        <a href="/admin/license-keys/{{.LicenseKey.ID}}/edit"
+          class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-gray-800 hover:bg-gray-900">
+          Edit License Key
+        </a>
+        {{if eq .LicenseKey.Status "active"}}
+        <form method="POST" action="/admin/license-keys/{{.LicenseKey.ID}}/revoke" style="display: inline;">
+          <button type="submit" onclick="return confirm('Are you sure you want to revoke this license key?')"
+            class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700">
+            Revoke Key
+          </button>
+        </form>
+        {{else}}
+        <form method="POST" action="/admin/license-keys/{{.LicenseKey.ID}}/reactivate" style="display: inline;">
+          <button type="submit"
+            class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-lime-600 hover:bg-lime-700">
+            Reactivate Key
+          </button>
+        </form>
+        {{end}}
+      </div>
+    </div>
+  </div>
+  <div class="p-6">
+    <dl class="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
+      <div class="sm:col-span-2">
+        <dt class="text-sm font-medium text-gray-500">License Key</dt>
+        <dd class="mt-1 text-sm font-mono text-gray-900 bg-gray-100 p-2 rounded">{{.LicenseKey.Key}}</dd>
+      </div>
+      <div>
+        <dt class="text-sm font-medium text-gray-500">Product</dt>
+        <dd class="mt-1 text-sm text-gray-900">{{.LicenseKey.Product.Name}}</dd>
+      </div>
+      <div>
+        <dt class="text-sm font-medium text-gray-500">Customer</dt>
+        <dd class="mt-1 text-sm text-gray-900">{{.LicenseKey.Customer.Name}} ({{.LicenseKey.Customer.Email}})</dd>
+      </div>
+      <div>
+        <dt class="text-sm font-medium text-gray-500">Status</dt>
+        <dd class="mt-1">
+          <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full {{if eq .LicenseKey.Status "active"}}bg-lime-100 text-lime-800{{else if eq .LicenseKey.Status "expired"}}bg-yellow-100 text-yellow-800{{else}}bg-gray-100 text-gray-800{{end}}">
+            {{.LicenseKey.Status}}
+          </span>
+        </dd>
+      </div>
+      <div>
+        <dt class="text-sm font-medium text-gray-500">Usage Limit</dt>
+        <dd class="mt-1 text-sm text-gray-900">{{.LicenseKey.UsageLimit}}</dd>
+      </div>
+      <div>
+        <dt class="text-sm font-medium text-gray-500">Usage Count</dt>
+        <dd class="mt-1 text-sm text-gray-900">{{.LicenseKey.UsageCount}}</dd>
+      </div>
+      <div>
+        <dt class="text-sm font-medium text-gray-500">Expires At</dt>
+        <dd class="mt-1 text-sm text-gray-900">
+          {{if .LicenseKey.ExpiresAt}}{{.LicenseKey.ExpiresAt.Format "01/02/2006 15:04"}}{{else}}Never{{end}}
+        </dd>
+      </div>
+      <div>
+        <dt class="text-sm font-medium text-gray-500">Created</dt>
+        <dd class="mt-1 text-sm text-gray-900">{{.LicenseKey.CreatedAt.Format "01/02/2006 15:04"}}</dd>
+      </div>
+      <div>
+        <dt class="text-sm font-medium text-gray-500">Last Used</dt>
+        <dd class="mt-1 text-sm text-gray-900">
+          {{if .LicenseKey.LastValidatedAt}}{{.LicenseKey.LastValidatedAt.Format "01/02/2006 15:04"}}{{else}}Never{{end}}
+        </dd>
+      </div>
+      {{if .LicenseKey.Metadata}}
+      <div class="sm:col-span-2">
+        <dt class="text-sm font-medium text-gray-500">Metadata</dt>
+        <dd class="mt-1 text-sm text-gray-900">{{.LicenseKey.Metadata}}</dd>
+      </div>
+      {{end}}
+    </dl>
+  </div>
+</div>
+{{end}}

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{if .Title}}{{.Title}} - {{end}}Matcha</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#374151',
+                        secondary: '#6b7280',
+                        accent: '#84cc16',
+                        warning: '#eab308',
+                        danger: '#6b7280',
+                        info: '#6b7280'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="bg-gray-100 min-h-screen" hx-boost="true">
+    <!-- Loading bar -->
+    <div id="loading-bar" class="fixed top-0 left-0 w-full h-1 bg-lime-500 z-50 transform -translate-x-full transition-transform duration-300 ease-out"></div>
+    {{if .ShowNav}}
+    <nav class="bg-white border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center">
+                    <a href="/admin" class="text-gray-900 text-lg font-semibold hover:text-gray-700">
+                        Matcha
+                    </a>
+                </div>
+
+                <div class="relative">
+                    <div class="relative inline-block text-left">
+                        <button onclick="toggleDropdown()"
+                            class="flex items-center text-gray-700 hover:text-gray-900 focus:outline-none focus:text-gray-900">
+                            <span class="mr-2">Admin</span>
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+
+                        <div id="dropdown"
+                            class="hidden absolute right-0 mt-2 w-48 bg-white rounded border border-gray-200 shadow-lg py-1 z-50">
+                            <a href="/admin"
+                                class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Dashboard</a>
+                            <a href="/admin/products"
+                                class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Products</a>
+                            <a href="/admin/customers"
+                                class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Customers</a>
+                            <a href="/admin/license-keys"
+                                class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">License Keys</a>
+                            <hr class="my-1 border-gray-200">
+                            <a href="/admin/settings/email"
+                                class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Settings</a>
+                            <hr class="my-1 border-gray-200">
+                            <a href="/admin/logout"
+                                class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Logout</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+    {{end}}
+
+    <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+        {{if .Alert}}
+        <div class="mb-4 p-4 rounded-md {{if eq .AlertType " error"}}bg-red-50 text-yellow-800{{else}}bg-lime-50
+            text-lime-800{{end}}">
+            {{.Alert}}
+        </div>
+        {{end}}
+
+        {{if .ShowNav}}
+            {{if eq .PageType "dashboard"}}
+                {{template "dashboard-content" .}}
+            {{else if eq .PageType "products-index"}}
+                {{template "products-index-content" .}}
+            {{else if eq .PageType "products-new"}}
+                {{template "products-new-content" .}}
+            {{else if eq .PageType "products-show"}}
+                {{template "products-show-content" .}}
+            {{else if eq .PageType "products-edit"}}
+                {{template "products-edit-content" .}}
+            {{else if eq .PageType "customers-index"}}
+                {{template "customers-index-content" .}}
+            {{else if eq .PageType "customers-new"}}
+                {{template "customers-new-content" .}}
+            {{else if eq .PageType "customers-show"}}
+                {{template "customers-show-content" .}}
+            {{else if eq .PageType "customers-edit"}}
+                {{template "customers-edit-content" .}}
+            {{else if eq .PageType "license-keys-index"}}
+                {{template "license-keys-index-content" .}}
+            {{else if eq .PageType "license-keys-new"}}
+                {{template "license-keys-new-content" .}}
+            {{else if eq .PageType "license-keys-show"}}
+                {{template "license-keys-show-content" .}}
+            {{else if eq .PageType "license-keys-edit"}}
+                {{template "license-keys-edit-content" .}}
+            {{else if eq .PageType "email-settings"}}
+                {{template "email-settings-content" .}}
+            {{end}}
+        {{else}}
+            {{template "login-content" .}}
+        {{end}}
+    </div>
+
+    <script>
+        function toggleDropdown() {
+            const dropdown = document.getElementById('dropdown');
+            dropdown.classList.toggle('hidden');
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function (event) {
+            const dropdown = document.getElementById('dropdown');
+            const button = event.target.closest('button');
+
+            if (!button && dropdown && !dropdown.classList.contains('hidden')) {
+                dropdown.classList.add('hidden');
+            }
+        });
+
+        // Loading bar functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const loadingBar = document.getElementById('loading-bar');
+            
+            // Show loading bar when request starts
+            document.addEventListener('htmx:beforeRequest', function() {
+                loadingBar.classList.remove('-translate-x-full');
+                loadingBar.classList.add('translate-x-0');
+            });
+            
+            // Hide loading bar when request completes
+            document.addEventListener('htmx:afterRequest', function() {
+                setTimeout(() => {
+                    loadingBar.classList.remove('translate-x-0');
+                    loadingBar.classList.add('-translate-x-full');
+                }, 100);
+            });
+        });
+    </script>
+</body>
+
+</html>
