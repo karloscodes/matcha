@@ -20,7 +20,22 @@ func SetupTestDB(t *testing.T) *gorm.DB {
 	err = db.AutoMigrate(&models.Product{}, &models.Customer{}, &models.LicenseKey{}, &models.AdminUser{}, &models.EmailSettings{})
 	require.NoError(t, err)
 
+	// Add cleanup function to ensure database is cleaned up after test
+	t.Cleanup(func() {
+		CleanupTestDB(db)
+	})
+
 	return db
+}
+
+// CleanupTestDB removes all data from test database tables using GORM
+func CleanupTestDB(db *gorm.DB) {
+	// Delete all records using GORM's Unscoped to permanently delete
+	db.Unscoped().Where("1 = 1").Delete(&models.LicenseKey{})
+	db.Unscoped().Where("1 = 1").Delete(&models.Customer{})
+	db.Unscoped().Where("1 = 1").Delete(&models.Product{})
+	db.Unscoped().Where("1 = 1").Delete(&models.AdminUser{})
+	db.Unscoped().Where("1 = 1").Delete(&models.EmailSettings{})
 }
 
 func SetupTestApp() *fiber.App {
