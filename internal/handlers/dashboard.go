@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -67,29 +68,79 @@ func (h *DashboardHandler) Dashboard(c *fiber.Ctx) error {
 
 // Email Configuration
 func (h *DashboardHandler) EmailConfigPage(c *fiber.Ctx) error {
-	// Read current config (in a real app, you'd save this to database)
-	cfg := config.New()
+	var settings models.EmailSettings
+	
+	// Try to get active email settings
+	activeSettings, err := models.GetActiveEmailSettings(h.db)
+	if err != nil {
+		// No active settings found, show empty form
+		settings = models.EmailSettings{
+			SMTPPort: 587,
+			SMTPEncryption: "tls",
+		}
+	} else {
+		settings = *activeSettings
+	}
 
 	return c.Render("admin/email-config", fiber.Map{
 		"ShowNav":   true,
-		"Config":    cfg,
+		"Config":    settings,
 		"CSRFToken": "",
 	})
 }
 
 func (h *DashboardHandler) EmailConfigUpdate(c *fiber.Ctx) error {
-	// In a real application, you would save these to database
-	// For now, we'll show how the form would work
-
-	emailService := c.FormValue("email_service")
+	// Extract form values
+	smtpHost := c.FormValue("smtp_host")
+	smtpPort, _ := strconv.Atoi(c.FormValue("smtp_port"))
+	smtpUsername := c.FormValue("smtp_username")
+	smtpPassword := c.FormValue("smtp_password")
+	smtpEncryption := c.FormValue("smtp_encryption")
 	fromEmail := c.FormValue("from_email")
+	fromName := c.FormValue("from_name")
 
-	message := fmt.Sprintf("Email configuration updated: Service=%s, From=%s", emailService, fromEmail)
+	// Create or update email settings
+	var settings models.EmailSettings
+	activeSettings, err := models.GetActiveEmailSettings(h.db)
+	if err != nil {
+		// Create new settings
+		settings = models.EmailSettings{
+			Provider:       "smtp",
+			SMTPHost:       smtpHost,
+			SMTPPort:       smtpPort,
+			SMTPUsername:   smtpUsername,
+			SMTPPassword:   smtpPassword,
+			SMTPEncryption: smtpEncryption,
+			FromEmail:      fromEmail,
+			FromName:       fromName,
+			IsActive:       true,
+		}
+	} else {
+		// Update existing settings
+		settings = *activeSettings
+		settings.SMTPHost = smtpHost
+		settings.SMTPPort = smtpPort
+		settings.SMTPUsername = smtpUsername
+		settings.SMTPPassword = smtpPassword
+		settings.SMTPEncryption = smtpEncryption
+		settings.FromEmail = fromEmail
+		settings.FromName = fromName
+	}
+
+	// Save to database
+	if err := settings.Save(h.db); err != nil {
+		return c.Render("admin/email-config", fiber.Map{
+			"ShowNav":   true,
+			"Error":     fmt.Sprintf("Failed to save email configuration: %v", err),
+			"Config":    settings,
+			"CSRFToken": "",
+		})
+	}
 
 	return c.Render("admin/email-config", fiber.Map{
 		"ShowNav":   true,
-		"Success":   message,
-		"Config":    config.New(), // In reality, you'd load the updated config
+		"Success":   "Email configuration saved successfully",
+		"Config":    settings,
 		"CSRFToken": "",
 	})
 }
@@ -97,22 +148,38 @@ func (h *DashboardHandler) EmailConfigUpdate(c *fiber.Ctx) error {
 func (h *DashboardHandler) EmailTestSend(c *fiber.Ctx) error {
 	testEmail := c.FormValue("test_email")
 	if testEmail == "" {
+		settings, _ := models.GetActiveEmailSettings(h.db)
+		if settings == nil {
+			settings = &models.EmailSettings{}
+		}
 		return c.Render("admin/email-config", fiber.Map{
 			"ShowNav":   true,
 			"Error":     "Please enter a test email address",
-			"Config":    config.New(),
+			"Config":    *settings,
 			"CSRFToken": "",
 		})
 	}
 
-	// Actually send a test email
-	emailService := services.NewEmailService(config.New())
-	err := emailService.SendTestEmail(testEmail)
+	// Get current settings for display
+	settings, err := models.GetActiveEmailSettings(h.db)
+	if err != nil {
+		return c.Render("admin/email-config", fiber.Map{
+			"ShowNav":   true,
+			"Error":     "No email configuration found. Please configure email settings first.",
+			"Config":    models.EmailSettings{},
+			"CSRFToken": "",
+		})
+	}
+
+	// Send a test email
+	cfg := config.New()
+	emailService := services.NewEmailService(cfg, h.db)
+	err = emailService.SendTestEmail(testEmail)
 	if err != nil {
 		return c.Render("admin/email-config", fiber.Map{
 			"ShowNav":   true,
 			"Error":     fmt.Sprintf("Failed to send test email: %v", err),
-			"Config":    config.New(),
+			"Config":    *settings,
 			"CSRFToken": "",
 		})
 	}
@@ -120,7 +187,7 @@ func (h *DashboardHandler) EmailTestSend(c *fiber.Ctx) error {
 	return c.Render("admin/email-config", fiber.Map{
 		"ShowNav":   true,
 		"Success":   fmt.Sprintf("Test email sent successfully to %s", testEmail),
-		"Config":    config.New(),
+		"Config":    *settings,
 		"CSRFToken": "",
 	})
 }

@@ -63,6 +63,21 @@ type AdminUser struct {
 	UpdatedAt    time.Time
 }
 
+type EmailSettings struct {
+	ID             uint   `gorm:"primaryKey" json:"id"`
+	Provider       string `gorm:"not null;default:smtp" json:"provider"`
+	SMTPHost       string `json:"smtp_host"`
+	SMTPPort       int    `json:"smtp_port"`
+	SMTPUsername   string `json:"smtp_username"`
+	SMTPPassword   string `json:"smtp_password"`
+	SMTPEncryption string `gorm:"default:tls" json:"smtp_encryption"`
+	FromEmail      string `gorm:"not null" json:"from_email"`
+	FromName       string `json:"from_name"`
+	IsActive       bool   `gorm:"default:false" json:"is_active"`
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
 // Product methods
 func (p *Product) GenerateLicenseKeyFor(db *gorm.DB, customer *Customer) (*LicenseKey, error) {
 	key := generateRandomKey(32)
@@ -270,4 +285,38 @@ func (lk *LicenseKey) SetMetadataMap(data map[string]interface{}) error {
 	}
 	lk.Metadata = string(bytes)
 	return nil
+}
+
+// EmailSettings methods
+func GetActiveEmailSettings(db *gorm.DB) (*EmailSettings, error) {
+	var settings EmailSettings
+	err := db.Where("is_active = ?", true).First(&settings).Error
+	if err != nil {
+		return nil, err
+	}
+	return &settings, nil
+}
+
+func (es *EmailSettings) Save(db *gorm.DB) error {
+	if es.IsActive {
+		db.Model(&EmailSettings{}).Where("id != ?", es.ID).Update("is_active", false)
+	}
+	return db.Save(es).Error
+}
+
+func (es *EmailSettings) Activate(db *gorm.DB) error {
+	tx := db.Begin()
+	
+	if err := tx.Model(&EmailSettings{}).Where("id != ?", es.ID).Update("is_active", false).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+	
+	es.IsActive = true
+	if err := tx.Save(es).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+	
+	return tx.Commit().Error
 }

@@ -93,7 +93,7 @@
       <div>
         <dt class="text-sm font-medium text-gray-500">Last Used</dt>
         <dd class="mt-1 text-sm text-gray-900">
-          {{if .LicenseKey.LastUsedAt}}{{.LicenseKey.LastUsedAt.Format "01/02/2006 15:04"}}{{else}}Never{{end}}
+          {{if .LicenseKey.LastValidatedAt}}{{.LicenseKey.LastValidatedAt.Format "01/02/2006 15:04"}}{{else}}Never{{end}}
         </dd>
       </div>
       {{if .LicenseKey.Metadata}}

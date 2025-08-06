@@ -7,51 +7,25 @@ import (
 )
 
 type Config struct {
-	Environment     string
-	Port            string
-	DatabaseURL     string
-	EmailService    string
-	FromEmail       string
-	MailgunAPIKey   string
-	MailgunDomain   string
-	SendGridAPIKey  string
-	SendGridDomain  string
-	SMTPServer      string
-	SMTPPort        string
-	SMTPUsername    string
-	SMTPPassword    string
-	SMTPAuth        string
-	SMTPTLS         string
-	SMTPDomain      string
-	SecretKey       string
-	Debug           bool
+	Environment string
+	Port        string
+	DatabaseURL string
+	SecretKey   string
+	Debug       bool
 }
 
 func New() *Config {
 	env := getEnv("GO_ENV", "development")
-	
+
 	cfg := &Config{
-		Environment:     env,
-		Port:            getEnv("PORT", "8080"),
-		EmailService:    getEnv("EMAIL_SERVICE", "smtp"),
-		FromEmail:       getEnv("FROM_EMAIL", getDefaultFromEmail(env)),
-		MailgunAPIKey:   getEnv("MAILGUN_API_KEY", ""),
-		MailgunDomain:   getEnv("MAILGUN_DOMAIN", ""),
-		SendGridAPIKey:  getEnv("SENDGRID_API_KEY", ""),
-		SendGridDomain:  getEnv("SENDGRID_DOMAIN", "localhost"),
-		SMTPServer:      getEnv("SMTP_SERVER", "localhost"),
-		SMTPPort:        getEnv("SMTP_PORT", "587"),
-		SMTPUsername:    getEnv("SMTP_USERNAME", ""),
-		SMTPPassword:    getEnv("SMTP_PASSWORD", ""),
-		SMTPAuth:        getEnv("SMTP_AUTH", "plain"),
-		SMTPTLS:         getEnv("SMTP_TLS", "true"),
-		SMTPDomain:      getEnv("SMTP_DOMAIN", "localhost"),
-		SecretKey:       getEnv("SECRET_KEY", getDefaultSecretKey(env)),
-		Debug:           getBoolEnv("DEBUG", env == "development"),
+		Environment: env,
+		Port:        getEnv("PORT", "8080"),
+		SecretKey:   getEnv("SECRET_KEY", getDefaultSecretKey(env)),
+		Debug:       getBoolEnv("DEBUG", env == "development"),
 	}
 
 	cfg.DatabaseURL = getEnv("DATABASE_URL", getDefaultDatabaseURL(env))
-	
+
 	return cfg
 }
 
@@ -91,15 +65,6 @@ func getDefaultDatabaseURL(env string) string {
 		return "prod_license_manager.db"
 	default:
 		return "license_manager.db"
-	}
-}
-
-func getDefaultFromEmail(env string) string {
-	switch env {
-	case "production":
-		return "noreply@yourdomain.com"
-	default:
-		return "noreply@localhost"
 	}
 }
 

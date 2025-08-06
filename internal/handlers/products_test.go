@@ -313,6 +313,24 @@ func TestProductsHandler_Update(t *testing.T) {
 			},
 			expectedStatus: 405,
 		},
+		{
+			name: "should return 405 for POST without _method=PUT",
+			setupData: func(db *gorm.DB) uint {
+				product := models.Product{
+					Name:        "Test Product",
+					Description: "Test Description",
+					Version:     "1.0.0",
+				}
+				db.Create(&product)
+				return product.ID
+			},
+			formData: map[string]string{
+				"name":        "Updated Product",
+				"description": "Updated Description",
+				"version":     "2.0.0",
+			},
+			expectedStatus: 405,
+		},
 	}
 
 	for _, tt := range tests {

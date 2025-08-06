@@ -1,196 +1,229 @@
 package services
 
 import (
-	"bytes"
-	"context"
+	"crypto/tls"
 	"fmt"
-	"html/template"
-	"strconv"
+	"net/smtp"
 	"strings"
-	"time"
 
 	"license-key-manager/internal/config"
 	"license-key-manager/internal/models"
 
-	"github.com/mailgun/mailgun-go/v4"
-	"github.com/sendgrid/sendgrid-go"
-	"github.com/sendgrid/sendgrid-go/helpers/mail"
-	"gopkg.in/gomail.v2"
+	"gorm.io/gorm"
 )
 
 type EmailService struct {
 	config *config.Config
+	db     *gorm.DB
 }
 
-func NewEmailService(cfg *config.Config) *EmailService {
+func NewEmailService(cfg *config.Config, db *gorm.DB) *EmailService {
+	return &EmailService{
+		config: cfg,
+		db:     db,
+	}
+}
+
+func (es *EmailService) SendTestEmail(toEmail string) error {
+	settings, err := models.GetActiveEmailSettings(es.db)
+	if err != nil {
+		return fmt.Errorf("no active email settings found: %w", err)
+	}
+
+	subject := "Test Email from License Key Manager"
+	body := `
+<html>
+<body>
+	<h2>Test Email</h2>
+	<p>This is a test email to verify your email configuration is working correctly.</p>
+	<p>If you received this email, your SMTP settings are properly configured.</p>
+</body>
+</html>`
+
+	return es.sendEmail(settings, toEmail, subject, body)
+}
+
+func (es *EmailService) SendLicenseKey(toEmail, licenseKey, productName string) error {
+	settings, err := models.GetActiveEmailSettings(es.db)
+	if err != nil {
+		return fmt.Errorf("no active email settings found: %w", err)
+	}
+
+	subject := fmt.Sprintf("Your License Key for %s", productName)
+	body := fmt.Sprintf(`
+<html>
+<body>
+	<h2>Your License Key</h2>
+	<p>Thank you for your purchase! Here are your license details:</p>
+	
+	<div style="background-color: #f5f5f5; padding: 20px; margin: 20px 0; border-radius: 5px;">
+		<h3>Product: %s</h3>
+		<p><strong>License Key:</strong> <code style="background-color: #e8e8e8; padding: 4px 8px; border-radius: 3px;">%s</code></p>
+	</div>
+	
+	<p>Please keep this license key safe and secure. You'll need it to activate your software.</p>
+	
+	<p>If you have any questions or need support, please don't hesitate to contact us.</p>
+	
+	<p>Best regards,<br>
+	The License Key Manager Team</p>
+</body>
+</html>`, productName, licenseKey)
+
+	return es.sendEmail(settings, toEmail, subject, body)
+}
+
+func (es *EmailService) sendEmail(settings *models.EmailSettings, to, subject, body string) error {
+	if settings.Provider != "smtp" {
+		return fmt.Errorf("unsupported email provider: %s", settings.Provider)
+	}
+
+	auth := smtp.PlainAuth("", settings.SMTPUsername, settings.SMTPPassword, settings.SMTPHost)
+
+	fromName := settings.FromName
+	if fromName == "" {
+		fromName = "License Key Manager"
+	}
+
+	msg := []string{
+		fmt.Sprintf("To: %s", to),
+		fmt.Sprintf("From: %s <%s>", fromName, settings.FromEmail),
+		fmt.Sprintf("Subject: %s", subject),
+		"MIME-Version: 1.0",
+		"Content-Type: text/html; charset=UTF-8",
+		"",
+		body,
+	}
+
+	message := []byte(strings.Join(msg, "\r\n"))
+
+	addr := fmt.Sprintf("%s:%d", settings.SMTPHost, settings.SMTPPort)
+
+	switch settings.SMTPEncryption {
+	case "tls", "starttls":
+		return es.sendWithTLS(addr, auth, settings.FromEmail, []string{to}, message)
+	case "ssl":
+		return es.sendWithSSL(addr, auth, settings.FromEmail, []string{to}, message)
+	default:
+		return smtp.SendMail(addr, auth, settings.FromEmail, []string{to}, message)
+	}
+}
+
+func (es *EmailService) sendWithTLS(addr string, auth smtp.Auth, from string, to []string, msg []byte) error {
+	client, err := smtp.Dial(addr)
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+
+	if err = client.StartTLS(&tls.Config{ServerName: strings.Split(addr, ":")[0]}); err != nil {
+		return err
+	}
+
+	if err = client.Auth(auth); err != nil {
+		return err
+	}
+
+	if err = client.Mail(from); err != nil {
+		return err
+	}
+
+	for _, recipient := range to {
+		if err = client.Rcpt(recipient); err != nil {
+			return err
+		}
+	}
+
+	writer, err := client.Data()
+	if err != nil {
+		return err
+	}
+	defer writer.Close()
+
+	_, err = writer.Write(msg)
+	return err
+}
+
+func (es *EmailService) sendWithSSL(addr string, auth smtp.Auth, from string, to []string, msg []byte) error {
+	tlsConfig := &tls.Config{
+		InsecureSkipVerify: false,
+		ServerName:         strings.Split(addr, ":")[0],
+	}
+
+	conn, err := tls.Dial("tcp", addr, tlsConfig)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client, err := smtp.NewClient(conn, strings.Split(addr, ":")[0])
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+
+	if err = client.Auth(auth); err != nil {
+		return err
+	}
+
+	if err = client.Mail(from); err != nil {
+		return err
+	}
+
+	for _, recipient := range to {
+		if err = client.Rcpt(recipient); err != nil {
+			return err
+		}
+	}
+
+	writer, err := client.Data()
+	if err != nil {
+		return err
+	}
+	defer writer.Close()
+
+	_, err = writer.Write(msg)
+	return err
+}
+
+// Legacy compatibility functions for existing config-based approach
+func NewEmailServiceWithConfig(cfg *config.Config) *EmailService {
 	return &EmailService{
 		config: cfg,
 	}
 }
 
-func (es *EmailService) SendLicenseKey(licenseKey *models.LicenseKey) error {
-	subject := fmt.Sprintf("Your License Key for %s", licenseKey.Product.Name)
-	htmlBody, err := es.generateLicenseKeyEmail(licenseKey)
-	if err != nil {
-		return err
-	}
-
-	switch strings.ToLower(es.config.EmailService) {
-	case "mailgun":
-		return es.sendViaMailgun(licenseKey.Customer.Email, subject, htmlBody)
-	case "sendgrid":
-		return es.sendViaSendGrid(licenseKey.Customer.Email, subject, htmlBody)
-	case "smtp":
-		return es.sendViaSMTP(licenseKey.Customer.Email, subject, htmlBody)
-	default:
-		return fmt.Errorf("unsupported email service: %s", es.config.EmailService)
-	}
+func (es *EmailService) SendTestEmailLegacy(toEmail string) error {
+	// This is a stub for backward compatibility
+	// In a real implementation, you'd fall back to environment variables
+	// or provide a migration path
+	return fmt.Errorf("please configure email settings in the database")
 }
 
-func (es *EmailService) sendViaMailgun(to, subject, htmlBody string) error {
-	if es.config.MailgunAPIKey == "" || es.config.MailgunDomain == "" {
-		return fmt.Errorf("mailgun configuration missing")
+// Helper function to migrate from config to database
+func (es *EmailService) MigrateConfigToDatabase() error {
+	if es.db == nil {
+		return fmt.Errorf("database connection required for migration")
 	}
 
-	mg := mailgun.NewMailgun(es.config.MailgunDomain, es.config.MailgunAPIKey)
-	message := mg.NewMessage(es.config.FromEmail, subject, "", to)
-	message.SetHtml(htmlBody)
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
-
-	_, _, err := mg.Send(ctx, message)
-	return err
-}
-
-func (es *EmailService) sendViaSendGrid(to, subject, htmlBody string) error {
-	if es.config.SendGridAPIKey == "" {
-		return fmt.Errorf("sendgrid configuration missing")
+	// Check if we already have active settings
+	_, err := models.GetActiveEmailSettings(es.db)
+	if err == nil {
+		return nil // Already have settings
 	}
 
-	from := mail.NewEmail("License Key Manager", es.config.FromEmail)
-	toEmail := mail.NewEmail("", to)
-	message := mail.NewSingleEmail(from, subject, toEmail, "", htmlBody)
-
-	client := sendgrid.NewSendClient(es.config.SendGridAPIKey)
-	_, err := client.Send(message)
-	return err
-}
-
-func (es *EmailService) sendViaSMTP(to, subject, htmlBody string) error {
-	if es.config.SMTPServer == "" {
-		return fmt.Errorf("smtp configuration missing")
+	// Create default settings from environment (you'd read from env vars here)
+	settings := &models.EmailSettings{
+		Provider:       "smtp",
+		SMTPHost:       "smtp.gmail.com", // Default or from env
+		SMTPPort:       587,
+		SMTPUsername:   "",
+		SMTPPassword:   "",
+		SMTPEncryption: "tls",
+		FromEmail:      "",
+		FromName:       "License Key Manager",
+		IsActive:       false, // Require manual activation
 	}
 
-	m := gomail.NewMessage()
-	m.SetHeader("From", es.config.FromEmail)
-	m.SetHeader("To", to)
-	m.SetHeader("Subject", subject)
-	m.SetBody("text/html", htmlBody)
-
-	port, _ := strconv.Atoi(es.config.SMTPPort)
-	d := gomail.NewDialer(es.config.SMTPServer, port, es.config.SMTPUsername, es.config.SMTPPassword)
-
-	if es.config.SMTPTLS == "false" {
-		d.TLSConfig = nil
-	}
-
-	return d.DialAndSend(m)
-}
-
-func (es *EmailService) generateLicenseKeyEmail(licenseKey *models.LicenseKey) (string, error) {
-	tmpl := `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .key { font-family: monospace; font-size: 18px; background: #f4f4f4; padding: 10px; border-radius: 4px; }
-        .details { background: #f9f9f9; padding: 15px; border-radius: 4px; margin: 15px 0; }
-    </style>
-</head>
-<body>
-    <h2>Your License Key for {{.Product.Name}}</h2>
-    
-    <p>Hello {{.Customer.Name}},</p>
-    
-    <p>Thank you for your purchase! Here is your license key:</p>
-    
-    <div class="key">
-        <strong>{{.Key}}</strong>
-    </div>
-    
-    <div class="details">
-        <h3>License Details</h3>
-        <ul>
-            <li><strong>Product:</strong> {{.Product.Name}}</li>
-            <li><strong>Usage Limit:</strong> {{.UsageLimit}} activations</li>
-            <li><strong>Expires:</strong> {{.ExpiresAt.Format "January 2, 2006"}}</li>
-            <li><strong>Current Usage:</strong> {{.UsageCount}} / {{.UsageLimit}}</li>
-        </ul>
-    </div>
-    
-    <p>Please keep this email safe as you will need the license key to use your software.</p>
-    
-    <hr>
-    <p><small>This email was sent automatically. Please do not reply to this email.</small></p>
-</body>
-</html>`
-
-	t, err := template.New("license_key_email").Parse(tmpl)
-	if err != nil {
-		return "", err
-	}
-
-	var buf bytes.Buffer
-	if err := t.Execute(&buf, licenseKey); err != nil {
-		return "", err
-	}
-
-	return buf.String(), nil
-}
-
-func (es *EmailService) SendTestEmail(to string) error {
-	subject := "Test Email from License Key Manager"
-	htmlBody := `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: #3b82f6; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
-        .content { background: #f9f9f9; padding: 20px; border-radius: 0 0 8px 8px; }
-        .success { color: #10b981; font-weight: bold; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h2>Email Configuration Test</h2>
-        </div>
-        <div class="content">
-            <p>Hello!</p>
-            <p>This is a test email to verify that your License Key Manager email configuration is working correctly.</p>
-            <p class="success">✅ Email delivery is functioning properly!</p>
-            <p>If you received this email, your email service configuration is set up correctly and ready to send license keys to your customers.</p>
-            <hr style="margin: 20px 0; border: none; border-top: 1px solid #ddd;">
-            <p><small>This is an automated test email from License Key Manager. Please do not reply to this email.</small></p>
-        </div>
-    </div>
-</body>
-</html>`
-
-	switch strings.ToLower(es.config.EmailService) {
-	case "mailgun":
-		return es.sendViaMailgun(to, subject, htmlBody)
-	case "sendgrid":
-		return es.sendViaSendGrid(to, subject, htmlBody)
-	case "smtp":
-		return es.sendViaSMTP(to, subject, htmlBody)
-	default:
-		return fmt.Errorf("unsupported email service: %s", es.config.EmailService)
-	}
+	return es.db.Create(settings).Error
 }

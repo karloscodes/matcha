@@ -2,16 +2,19 @@ package handlers
 
 import (
 	"net/http/httptest"
+	"strconv"
 	"testing"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 
+	"license-key-manager/internal/models"
 	"license-key-manager/internal/testutils"
 )
 
-func setupTestRoutes() *fiber.App {
+func setupTestRoutes() (*fiber.App, *gorm.DB) {
 	app := testutils.SetupTestApp()
 	db := testutils.SetupTestDB(&testing.T{})
 
@@ -71,11 +74,11 @@ func setupTestRoutes() *fiber.App {
 	admin.Post("/email-config", testutils.MockRender(dashboardHandler.EmailConfigUpdate))
 	admin.Post("/email-config/test", testutils.MockRender(dashboardHandler.EmailTestSend))
 
-	return app
+	return app, db
 }
 
 func TestRoutes_Dashboard(t *testing.T) {
-	app := setupTestRoutes()
+	app, _ := setupTestRoutes()
 
 	tests := []struct {
 		method string
@@ -98,7 +101,17 @@ func TestRoutes_Dashboard(t *testing.T) {
 }
 
 func TestRoutes_Products(t *testing.T) {
-	app := setupTestRoutes()
+	app, db := setupTestRoutes()
+	
+	// Create a test product for Show and Edit tests
+	product := models.Product{
+		Name:                  "Test Product",
+		Description:          "Test Description", 
+		Version:              "1.0.0",
+		DefaultExpirationDays: 365,
+		DefaultUsageLimit:     1,
+	}
+	db.Create(&product)
 
 	tests := []struct {
 		method string
@@ -107,8 +120,8 @@ func TestRoutes_Products(t *testing.T) {
 	}{
 		{"GET", "/admin/products", 200},
 		{"GET", "/admin/products/new", 200},
-		{"GET", "/admin/products/1", 200},
-		{"GET", "/admin/products/1/edit", 200},
+		{"GET", "/admin/products/" + strconv.Itoa(int(product.ID)), 200}, // Existing product should return 200
+		{"GET", "/admin/products/" + strconv.Itoa(int(product.ID)) + "/edit", 200}, // Existing product should return 200
 	}
 
 	for _, tt := range tests {
@@ -122,7 +135,16 @@ func TestRoutes_Products(t *testing.T) {
 }
 
 func TestRoutes_Customers(t *testing.T) {
-	app := setupTestRoutes()
+	app, db := setupTestRoutes()
+	
+	// Create a test customer for Show and Edit tests
+	customer := models.Customer{
+		Name:      "John Doe",
+		Email:     "john@example.com",
+		FirstName: "John",
+		LastName:  "Doe",
+	}
+	db.Create(&customer)
 
 	tests := []struct {
 		method string
@@ -131,8 +153,8 @@ func TestRoutes_Customers(t *testing.T) {
 	}{
 		{"GET", "/admin/customers", 200},
 		{"GET", "/admin/customers/new", 200},
-		{"GET", "/admin/customers/1", 200},
-		{"GET", "/admin/customers/1/edit", 200},
+		{"GET", "/admin/customers/" + strconv.Itoa(int(customer.ID)), 200}, // Existing customer should return 200
+		{"GET", "/admin/customers/" + strconv.Itoa(int(customer.ID)) + "/edit", 200}, // Existing customer should return 200
 	}
 
 	for _, tt := range tests {
@@ -146,7 +168,28 @@ func TestRoutes_Customers(t *testing.T) {
 }
 
 func TestRoutes_LicenseKeys(t *testing.T) {
-	app := setupTestRoutes()
+	app, db := setupTestRoutes()
+	
+	// Create test data for license key tests (product and customer first)
+	product := models.Product{
+		Name:                  "Test Product",
+		Description:          "Test Description",
+		Version:              "1.0.0", 
+		DefaultExpirationDays: 365,
+		DefaultUsageLimit:     1,
+	}
+	db.Create(&product)
+	
+	customer := models.Customer{
+		Name:      "Jane Doe",
+		Email:     "jane@example.com",
+		FirstName: "Jane",
+		LastName:  "Doe",
+	}
+	db.Create(&customer)
+	
+	// Create a test license key for Show and Edit tests
+	licenseKey, _ := product.GenerateLicenseKeyFor(db, &customer)
 
 	tests := []struct {
 		method string
@@ -155,8 +198,8 @@ func TestRoutes_LicenseKeys(t *testing.T) {
 	}{
 		{"GET", "/admin/license-keys", 200},
 		{"GET", "/admin/license-keys/new", 200},
-		{"GET", "/admin/license-keys/1", 200},
-		{"GET", "/admin/license-keys/1/edit", 200},
+		{"GET", "/admin/license-keys/" + strconv.Itoa(int(licenseKey.ID)), 200}, // Existing license key should return 200
+		{"GET", "/admin/license-keys/" + strconv.Itoa(int(licenseKey.ID)) + "/edit", 200}, // Existing license key should return 200
 	}
 
 	for _, tt := range tests {
@@ -170,7 +213,7 @@ func TestRoutes_LicenseKeys(t *testing.T) {
 }
 
 func TestRoutes_EmailConfig(t *testing.T) {
-	app := setupTestRoutes()
+	app, _ := setupTestRoutes()
 
 	tests := []struct {
 		method string

@@ -42,7 +42,7 @@ func main() {
 	}
 
 	// Auto-migrate database
-	if err := db.AutoMigrate(&models.Product{}, &models.Customer{}, &models.LicenseKey{}, &models.AdminUser{}); err != nil {
+	if err := db.AutoMigrate(&models.Product{}, &models.Customer{}, &models.LicenseKey{}, &models.AdminUser{}, &models.EmailSettings{}); err != nil {
 		log.Fatal("Failed to migrate database:", err)
 	}
 
@@ -52,7 +52,7 @@ func main() {
 	}
 
 	// Initialize services
-	emailService := services.NewEmailService(cfg)
+	emailService := services.NewEmailService(cfg, db)
 
 	// Initialize handlers
 	dashboardHandler := handlers.NewDashboardHandler(db)

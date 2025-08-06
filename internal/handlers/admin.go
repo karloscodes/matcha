@@ -10,11 +10,9 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 
-	"license-key-manager/internal/config"
 	"license-key-manager/internal/database"
 	"license-key-manager/internal/middleware"
 	"license-key-manager/internal/models"
-	"license-key-manager/internal/services"
 )
 
 type AdminHandler struct {
@@ -569,62 +567,3 @@ func (h *AdminHandler) LicenseKeysSendEmail(c *fiber.Ctx) error {
 	return c.Redirect("/admin/license-keys/" + c.Params("id"))
 }
 
-// Email Configuration
-func (h *AdminHandler) EmailConfigPage(c *fiber.Ctx) error {
-	// Read current config (in a real app, you'd save this to database)
-	cfg := config.New()
-
-	return c.Render("admin/email-config", fiber.Map{
-		"ShowNav":   true,
-		"Config":    cfg,
-		"CSRFToken": "",
-	})
-}
-
-func (h *AdminHandler) EmailConfigUpdate(c *fiber.Ctx) error {
-	// In a real application, you would save these to database
-	// For now, we'll show how the form would work
-
-	emailService := c.FormValue("email_service")
-	fromEmail := c.FormValue("from_email")
-
-	message := fmt.Sprintf("Email configuration updated: Service=%s, From=%s", emailService, fromEmail)
-
-	return c.Render("admin/email-config", fiber.Map{
-		"ShowNav":   true,
-		"Success":   message,
-		"Config":    config.New(), // In reality, you'd load the updated config
-		"CSRFToken": "",
-	})
-}
-
-func (h *AdminHandler) EmailTestSend(c *fiber.Ctx) error {
-	testEmail := c.FormValue("test_email")
-	if testEmail == "" {
-		return c.Render("admin/email-config", fiber.Map{
-			"ShowNav":   true,
-			"Error":     "Please enter a test email address",
-			"Config":    config.New(),
-			"CSRFToken": "",
-		})
-	}
-
-	// Actually send a test email
-	emailService := services.NewEmailService(config.New())
-	err := emailService.SendTestEmail(testEmail)
-	if err != nil {
-		return c.Render("admin/email-config", fiber.Map{
-			"ShowNav":   true,
-			"Error":     fmt.Sprintf("Failed to send test email: %v", err),
-			"Config":    config.New(),
-			"CSRFToken": "",
-		})
-	}
-
-	return c.Render("admin/email-config", fiber.Map{
-		"ShowNav":   true,
-		"Success":   fmt.Sprintf("Test email sent successfully to %s", testEmail),
-		"Config":    config.New(),
-		"CSRFToken": "",
-	})
-}

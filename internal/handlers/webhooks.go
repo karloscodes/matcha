@@ -190,7 +190,7 @@ func (h *WebhookHandler) processSuccessfulPayment(email, name, productIDStr stri
 	}
 
 	// Send email with license key
-	if err := h.emailService.SendLicenseKey(licenseKey); err != nil {
+	if err := h.emailService.SendLicenseKey(customer.Email, licenseKey.Key, product.Name); err != nil {
 		log.Printf("Failed to send license key email: %v", err)
 		// Don't return error here - the license key was created successfully
 	}
