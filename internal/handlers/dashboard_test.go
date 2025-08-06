@@ -84,7 +84,7 @@ func TestDashboardHandler_Dashboard(t *testing.T) {
 
 			respRecorder := httptest.NewRecorder()
 			respRecorder.WriteHeader(resp.StatusCode)
-			respRecorder.WriteString("OK")
+			_, _ = respRecorder.WriteString("OK")
 			tt.checkResponse(t, respRecorder)
 		})
 	}

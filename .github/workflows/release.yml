@@ -5,6 +5,10 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+  packages: write
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -62,30 +66,8 @@ jobs:
       with:
         node-version: '18'
 
-    - name: Install dependencies
-      run: |
-        go mod download
-        npm install
-
-    - name: Build CSS
-      run: npm run build-css-prod
-
-    - name: Build binaries
-      run: |
-        mkdir -p dist
-        # Primary release: Linux AMD64 binary (default)
-        GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o dist/matcha main.go
-        
-        # Additional platform builds
-        GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o dist/matcha-linux-arm64 main.go
-        GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o dist/matcha-darwin-amd64 main.go
-        GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o dist/matcha-darwin-arm64 main.go
-        GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o dist/matcha-windows-amd64.exe main.go
-
-    - name: Create checksums
-      run: |
-        cd dist
-        sha256sum * > checksums.txt
+    - name: Build release
+      run: make release
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
@@ -157,7 +139,7 @@ jobs:
         echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/$(git describe --tags --abbrev=0 2>/dev/null || echo 'v0.0.0')...main" >> CHANGELOG.md
 
     - name: Create Release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         tag_name: v${{ github.run_number }}
         name: Release v${{ github.run_number }}
@@ -166,5 +148,4 @@ jobs:
           dist/*
         draft: false
         prerelease: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        token: ${{ secrets.GITHUB_TOKEN }}

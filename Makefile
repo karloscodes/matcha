@@ -32,9 +32,34 @@ run: ## Run the application
 	@echo "Starting Matcha..."
 	@GO_ENV=development go run main.go
 
-build: ## Build the application
-	@echo "Building Matcha..."
-	@go build -ldflags="-s -w" -o bin/matcha main.go
+build: ## Build the application (Linux AMD64)
+	@echo "Building Matcha for Linux AMD64..."
+	@mkdir -p bin
+	@GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/matcha main.go
+
+build-all: ## Build for all platforms
+	@echo "Building Matcha for all platforms..."
+	@mkdir -p dist
+	@echo "Building Linux AMD64 (primary)..."
+	@GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o dist/matcha main.go
+	@echo "Building Linux ARM64..."
+	@GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o dist/matcha-linux-arm64 main.go
+	@echo "Building macOS Intel..."
+	@GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o dist/matcha-darwin-amd64 main.go
+	@echo "Building macOS Apple Silicon..."
+	@GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o dist/matcha-darwin-arm64 main.go
+	@echo "Building Windows..."
+	@GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o dist/matcha-windows-amd64.exe main.go
+	@echo "Creating checksums..."
+	@cd dist && sha256sum * > checksums.txt
+	@echo "Build complete! Binaries in dist/ directory"
+
+release: deps build-css-prod build-all ## Build everything for release
+	@echo "Release build complete!"
+
+build-css-prod: ## Build production CSS
+	@echo "Building production CSS..."
+	@npm run build-css-prod
 
 # Dependencies
 deps: ## Download and install dependencies

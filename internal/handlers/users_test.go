@@ -55,7 +55,7 @@ func TestUsersHandler_Login(t *testing.T) {
 				admin := models.AdminUser{
 					Username: "testuser",
 				}
-				admin.SetPassword("correctpass")
+				_ = admin.SetPassword("correctpass")
 				db.Create(&admin)
 			},
 			formData: map[string]string{

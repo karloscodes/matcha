@@ -55,7 +55,7 @@ func MockRender(handler func(*fiber.Ctx) error) func(*fiber.Ctx) error {
 		defer func() {
 			if r := recover(); r != nil {
 				// If template rendering fails, just return OK
-				c.SendString("OK")
+				_ = c.SendString("OK")
 			}
 		}()
 
