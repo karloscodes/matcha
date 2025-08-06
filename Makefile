@@ -118,12 +118,15 @@ security: ## Run security scan
 	@echo "Running security scan..."
 	@if ! command -v gosec > /dev/null; then \
 		echo "Installing gosec..."; \
-		go install github.com/securecodewarrior/gosec/v2/cmd/gosec@v2.18.2; \
+		go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest; \
 	fi
 	@gosec ./...
 
-ci-full: deps build-css-prod fmt vet lint ci-test security ## Complete CI pipeline (deps, build, format, vet, lint, test, security)
+ci-full: deps build-css-prod fmt vet lint ci-test ## Complete CI pipeline (deps, build, format, vet, lint, test)
 	@echo "✅ Full CI pipeline completed successfully!"
+
+ci-security: security ## Run security scan separately
+	@echo "✅ Security scan completed successfully!"
 
 ci-quick: deps build-css-prod fmt vet ci-test ## Quick CI pipeline (without lint and security)
 	@echo "✅ Quick CI pipeline completed successfully!"

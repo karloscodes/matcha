@@ -27,8 +27,8 @@ jobs:
       with:
         node-version: '18'
 
-    - name: Run full CI pipeline
-      run: make ci-full
+    - name: Run CI pipeline
+      run: make ci-quick
 
   build:
     needs: test

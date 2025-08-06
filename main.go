@@ -16,7 +16,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
-	"github.com/gofiber/template/html/v2"
+	htmlEngine "github.com/gofiber/template/html/v2"
 	"github.com/joho/godotenv"
 )
 
@@ -65,7 +65,7 @@ func main() {
 	webhookHandler := handlers.NewWebhookHandler(db, emailService)
 
 	// Initialize template engine
-	engine := html.New("./templates", ".gohtml")
+	engine := htmlEngine.New("./templates", ".gohtml")
 
 	// Add template functions
 	engine.AddFunc("dict", func(values ...interface{}) map[string]interface{} {
