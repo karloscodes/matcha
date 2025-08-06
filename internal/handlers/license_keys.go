@@ -108,8 +108,8 @@ func (h *LicenseKeysHandler) Edit(c *fiber.Ctx) error {
 }
 
 func (h *LicenseKeysHandler) Update(c *fiber.Ctx) error {
-	// Handle method override for HTML forms
-	if c.Method() == "POST" && c.FormValue("_method") != "PUT" {
+	// Accept both PUT requests and POST requests with _method=PUT
+	if c.Method() != "PUT" && !(c.Method() == "POST" && c.FormValue("_method") == "PUT") {
 		return c.Status(405).SendString("Method not allowed")
 	}
 
@@ -119,8 +119,26 @@ func (h *LicenseKeysHandler) Update(c *fiber.Ctx) error {
 		return c.Status(404).SendString("License key not found")
 	}
 
-	if expiresAt, err := time.Parse("2006-01-02", c.FormValue("expires_at")); err == nil {
-		licenseKey.ExpiresAt = &expiresAt
+	// Update product ID
+	if productID, err := strconv.Atoi(c.FormValue("product_id")); err == nil && productID > 0 {
+		licenseKey.ProductID = uint(productID)
+	}
+
+	// Update customer ID
+	if customerID, err := strconv.Atoi(c.FormValue("customer_id")); err == nil && customerID > 0 {
+		licenseKey.CustomerID = uint(customerID)
+	}
+
+	// Update expiration date - handle both date and datetime-local formats
+	if expiresAtStr := c.FormValue("expires_at"); expiresAtStr != "" {
+		// Try datetime-local format first (YYYY-MM-DDTHH:MM)
+		if expiresAt, err := time.Parse("2006-01-02T15:04", expiresAtStr); err == nil {
+			licenseKey.ExpiresAt = &expiresAt
+		} else if expiresAt, err := time.Parse("2006-01-02", expiresAtStr); err == nil {
+			// Fallback to date format (YYYY-MM-DD)
+			licenseKey.ExpiresAt = &expiresAt
+		}
+		// If neither format works, leave ExpiresAt unchanged
 	}
 
 	if usageLimit, err := strconv.Atoi(c.FormValue("usage_limit")); err == nil {

@@ -109,8 +109,8 @@ func (h *ProductsHandler) Edit(c *fiber.Ctx) error {
 }
 
 func (h *ProductsHandler) Update(c *fiber.Ctx) error {
-	// Handle method override for HTML forms
-	if c.Method() == "POST" && c.FormValue("_method") != "PUT" {
+	// Accept both PUT requests and POST requests with _method=PUT
+	if c.Method() != "PUT" && !(c.Method() == "POST" && c.FormValue("_method") == "PUT") {
 		return c.Status(405).SendString("Method not allowed")
 	}
 

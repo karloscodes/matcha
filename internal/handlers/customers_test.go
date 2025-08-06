@@ -274,14 +274,31 @@ func TestCustomersHandler_Update(t *testing.T) {
 				return customer.ID
 			},
 			formData: map[string]string{
-				"_method":    "PUT",
-				"email":      "updated@example.com",
-				"first_name": "Updated",
-				"last_name":  "Name",
-				"company":    "Updated Corp",
+				"_method": "PUT",
+				"name":    "Updated Name",
+				"email":   "updated@example.com",
+				"company": "Updated Corp",
 			},
 			expectedStatus: 302,
 			expectedName:   "Updated Name",
+		},
+		{
+			name: "should update customer with name parsing",
+			setupData: func(db *gorm.DB) uint {
+				customer := models.Customer{
+					Name:  "Old Name",
+					Email: "old@example.com",
+				}
+				db.Create(&customer)
+				return customer.ID
+			},
+			formData: map[string]string{
+				"_method": "PUT",
+				"name":    "First Middle Last",
+				"email":   "new@example.com",
+			},
+			expectedStatus: 302,
+			expectedName:   "First Middle Last",
 		},
 		{
 			name: "should return 404 for non-existent customer",
@@ -344,7 +361,19 @@ func TestCustomersHandler_Update(t *testing.T) {
 				var customer models.Customer
 				db.First(&customer, customerID)
 				assert.Equal(t, tt.expectedName, customer.Name)
-				assert.Equal(t, "updated@example.com", customer.Email)
+				
+				if tt.name == "should update customer successfully" {
+					assert.Equal(t, "updated@example.com", customer.Email)
+					assert.Equal(t, "Updated Corp", customer.Company)
+					assert.Equal(t, "Updated", customer.FirstName)
+					assert.Equal(t, "Name", customer.LastName)
+				}
+				
+				if tt.name == "should update customer with name parsing" {
+					assert.Equal(t, "new@example.com", customer.Email)
+					assert.Equal(t, "First", customer.FirstName)
+					assert.Equal(t, "Middle Last", customer.LastName)
+				}
 			}
 		})
 	}

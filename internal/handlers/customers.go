@@ -105,8 +105,8 @@ func (h *CustomersHandler) Edit(c *fiber.Ctx) error {
 }
 
 func (h *CustomersHandler) Update(c *fiber.Ctx) error {
-	// Handle method override for HTML forms
-	if c.Method() == "POST" && c.FormValue("_method") != "PUT" {
+	// Accept both PUT requests and POST requests with _method=PUT
+	if c.Method() != "PUT" && !(c.Method() == "POST" && c.FormValue("_method") == "PUT") {
 		return c.Status(405).SendString("Method not allowed")
 	}
 
@@ -117,14 +117,32 @@ func (h *CustomersHandler) Update(c *fiber.Ctx) error {
 	}
 
 	customer.Email = c.FormValue("email")
-	customer.FirstName = c.FormValue("first_name")
-	customer.LastName = c.FormValue("last_name")
 	customer.Company = c.FormValue("company")
 
-	// Update Name field
-	if customer.FirstName != "" || customer.LastName != "" {
-		customer.Name = strings.TrimSpace(customer.FirstName + " " + customer.LastName)
-	} else if customer.Email != "" {
+	// Handle name field - can be either a combined name or separate first/last names
+	if name := c.FormValue("name"); name != "" {
+		customer.Name = name
+		// Try to split the name into first and last parts
+		nameParts := strings.Fields(name)
+		if len(nameParts) >= 1 {
+			customer.FirstName = nameParts[0]
+		}
+		if len(nameParts) >= 2 {
+			customer.LastName = strings.Join(nameParts[1:], " ")
+		}
+	} else {
+		// Handle separate first_name and last_name fields (for backwards compatibility)
+		customer.FirstName = c.FormValue("first_name")
+		customer.LastName = c.FormValue("last_name")
+		
+		// Update Name field from first and last name
+		if customer.FirstName != "" || customer.LastName != "" {
+			customer.Name = strings.TrimSpace(customer.FirstName + " " + customer.LastName)
+		}
+	}
+
+	// If still no name, derive from email
+	if customer.Name == "" && customer.Email != "" {
 		// Extract name from email if no name provided (get part before @)
 		atIndex := strings.Index(customer.Email, "@")
 		if atIndex > 0 {

@@ -301,16 +301,22 @@ func TestLicenseKeysHandler_Update(t *testing.T) {
 		{
 			name: "should update license key successfully",
 			setupData: func(db *gorm.DB) uint {
-				product := models.Product{Name: "Test Product", Version: "1.0.0"}
-				db.Create(&product)
+				product1 := models.Product{Name: "Test Product", Version: "1.0.0"}
+				db.Create(&product1)
 
-				customer := models.Customer{Name: "John Doe", Email: "john@example.com"}
-				db.Create(&customer)
+				product2 := models.Product{Name: "Updated Product", Version: "2.0.0"}
+				db.Create(&product2)
+
+				customer1 := models.Customer{Name: "John Doe", Email: "john@example.com"}
+				db.Create(&customer1)
+
+				customer2 := models.Customer{Name: "Jane Smith", Email: "jane@example.com"}
+				db.Create(&customer2)
 
 				licenseKey := models.LicenseKey{
 					Key:        "TEST-KEY-123",
-					ProductID:  product.ID,
-					CustomerID: customer.ID,
+					ProductID:  product1.ID,
+					CustomerID: customer1.ID,
 					Status:     "active",
 					UsageLimit: 1,
 				}
@@ -319,9 +325,36 @@ func TestLicenseKeysHandler_Update(t *testing.T) {
 			},
 			formData: map[string]string{
 				"_method":     "PUT",
-				"expires_at":  "2025-12-31",
+				"product_id":  "2", // Change to product2
+				"customer_id": "2", // Change to customer2
+				"expires_at":  "2025-12-31T15:04", // Use datetime-local format
 				"usage_limit": "5",
 				"metadata":    "Updated metadata",
+			},
+			expectedStatus: 302,
+		},
+		{
+			name: "should update license key with partial fields",
+			setupData: func(db *gorm.DB) uint {
+				product := models.Product{Name: "Test Product", Version: "1.0.0"}
+				db.Create(&product)
+
+				customer := models.Customer{Name: "John Doe", Email: "john@example.com"}
+				db.Create(&customer)
+
+				licenseKey := models.LicenseKey{
+					Key:        "TEST-KEY-456",
+					ProductID:  product.ID,
+					CustomerID: customer.ID,
+					Status:     "active",
+					UsageLimit: 10,
+				}
+				db.Create(&licenseKey)
+				return licenseKey.ID
+			},
+			formData: map[string]string{
+				"_method":     "PUT",
+				"usage_limit": "20", // Only update usage limit
 			},
 			expectedStatus: 302,
 		},
@@ -393,11 +426,27 @@ func TestLicenseKeysHandler_Update(t *testing.T) {
 			if tt.expectedStatus == 302 {
 				var licenseKey models.LicenseKey
 				db.First(&licenseKey, licenseKeyID)
-				assert.Equal(t, 5, licenseKey.UsageLimit)
-				assert.Equal(t, "Updated metadata", licenseKey.Metadata)
 
-				expectedTime, _ := time.Parse("2006-01-02", "2025-12-31")
-				assert.Equal(t, expectedTime, *licenseKey.ExpiresAt)
+				if tt.name == "should update license key successfully" {
+					// Verify all fields were updated
+					assert.Equal(t, uint(2), licenseKey.ProductID)
+					assert.Equal(t, uint(2), licenseKey.CustomerID)
+					assert.Equal(t, 5, licenseKey.UsageLimit)
+					assert.Equal(t, "Updated metadata", licenseKey.Metadata)
+
+					expectedTime, _ := time.Parse("2006-01-02T15:04", "2025-12-31T15:04")
+					if licenseKey.ExpiresAt != nil {
+						assert.Equal(t, expectedTime, *licenseKey.ExpiresAt)
+					}
+				}
+
+				if tt.name == "should update license key with partial fields" {
+					// Verify only usage limit was updated
+					assert.Equal(t, 20, licenseKey.UsageLimit)
+					// Other fields should remain unchanged
+					assert.Equal(t, uint(1), licenseKey.ProductID)
+					assert.Equal(t, uint(1), licenseKey.CustomerID)
+				}
 			}
 		})
 	}

@@ -4,6 +4,9 @@ An **open-source** self-hosted license key management system built with Go, GoFi
 
 > **🎉 Open Source & Free**: This project is completely free and open-source under the MIT License. You can use it commercially, modify it, and distribute it without restrictions.
 
+![Screenshot](./Screenshot.png)
+
+
 ## Features
 
 - **License Key Management**: Generate, validate, and manage license keys

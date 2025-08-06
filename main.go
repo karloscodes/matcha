@@ -7,13 +7,6 @@ import (
 	"net/http"
 	"strings"
 
-	"matcha/internal/config"
-	"matcha/internal/database"
-	"matcha/internal/handlers"
-	"matcha/internal/middleware"
-	"matcha/internal/models"
-	"matcha/internal/services"
-
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
@@ -22,6 +15,13 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	htmlEngine "github.com/gofiber/template/html/v2"
 	"github.com/joho/godotenv"
+
+	"matcha/internal/config"
+	"matcha/internal/database"
+	"matcha/internal/handlers"
+	"matcha/internal/middleware"
+	"matcha/internal/models"
+	"matcha/internal/services"
 )
 
 //go:embed templates/*
@@ -40,7 +40,7 @@ func main() {
 
 	// Initialize configuration
 	cfg := config.New()
-	log.Printf("Configuration loaded - SecretKey: %s", cfg.SecretKey)
+	log.Printf("Configuration loaded - Environment: %s, SecretKey: %s, Debug: %v", cfg.Environment, cfg.SecretKey, cfg.Debug)
 
 	// Initialize authentication middleware
 	middleware.InitAuth(cfg)
@@ -74,8 +74,19 @@ func main() {
 	apiHandler := handlers.NewAPIHandler(db)
 	webhookHandler := handlers.NewWebhookHandler(db, emailService)
 
-	// Initialize template engine with embedded templates
-	engine := htmlEngine.NewFileSystem(http.FS(templateFS), ".gohtml")
+	// Initialize template engine - use filesystem in development, embedded in production
+	var engine *htmlEngine.Engine
+	if cfg.IsDevelopment() {
+		// In development, use regular filesystem for template reloading
+		log.Println("Development mode: Using filesystem templates for hot reloading")
+		engine = htmlEngine.New("./templates", ".gohtml")
+		engine.Reload(true) // Enable template reloading in development
+	} else {
+		// In production, use embedded templates
+		log.Println("Production mode: Using embedded templates")
+		engine = htmlEngine.NewFileSystem(http.FS(templateFS), ".gohtml")
+		engine.Reload(false) // Disable reloading in production
+	}
 
 	// Add template functions
 	engine.AddFunc("dict", func(values ...interface{}) map[string]interface{} {
@@ -93,7 +104,6 @@ func main() {
 
 	// Don't use global layout - templates will extend layouts manually
 	// engine.Layout("layouts/base")
-	engine.Reload(cfg.IsDevelopment()) // Only reload in development
 	engine.Debug(cfg.Debug)
 
 	// Initialize Fiber app
@@ -175,11 +185,19 @@ func main() {
 		Expiration: 60,  // 1 minute window
 	}))
 
-	// Static files from embedded filesystem
-	staticSubFS, _ := fs.Sub(staticFS, "static")
-	app.Use("/static", filesystem.New(filesystem.Config{
-		Root: http.FS(staticSubFS),
-	}))
+	// Static files - use filesystem in development, embedded in production
+	if cfg.IsDevelopment() {
+		// In development, serve from regular filesystem
+		log.Println("Development mode: Using filesystem static files")
+		app.Static("/static", "./static")
+	} else {
+		// In production, serve from embedded filesystem
+		log.Println("Production mode: Using embedded static files")
+		staticSubFS, _ := fs.Sub(staticFS, "static")
+		app.Use("/static", filesystem.New(filesystem.Config{
+			Root: http.FS(staticSubFS),
+		}))
+	}
 
 	// Routes
 	setupRoutes(app, dashboardHandler, usersHandler, productsHandler, customersHandler, licenseKeysHandler, settingsHandler, apiHandler, webhookHandler)
