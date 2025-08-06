@@ -52,7 +52,8 @@ func (h *DashboardHandler) Dashboard(c *fiber.Ctx) error {
 		Limit(10).
 		Find(&recentLicenses)
 
-	return c.Render("admin/dashboard/index", fiber.Map{
+	// Render dashboard with safe fallback
+	return SafeRender(c, "admin/dashboard/index", fiber.Map{
 		"ShowNav":            true,
 		"PageType":           "dashboard",
 		"Title":              "Dashboard - Live " + time.Now().Format("15:04:05"),
@@ -82,7 +83,8 @@ func (h *DashboardHandler) EmailConfigPage(c *fiber.Ctx) error {
 		settings = *activeSettings
 	}
 
-	return c.Render("admin/email-config", fiber.Map{
+	// Try to render template, fallback to JSON if no template engine
+	return SafeRender(c, "admin/dashboard/email-config", fiber.Map{
 		"ShowNav":   true,
 		"Config":    settings,
 		"CSRFToken": "",
@@ -92,20 +94,28 @@ func (h *DashboardHandler) EmailConfigPage(c *fiber.Ctx) error {
 func (h *DashboardHandler) EmailConfigUpdate(c *fiber.Ctx) error {
 	// Extract form values
 	smtpHost := c.FormValue("smtp_host")
-	smtpPort, _ := strconv.Atoi(c.FormValue("smtp_port"))
+	smtpPortStr := c.FormValue("smtp_port")
 	smtpUsername := c.FormValue("smtp_username")
 	smtpPassword := c.FormValue("smtp_password")
 	smtpEncryption := c.FormValue("smtp_encryption")
 	fromEmail := c.FormValue("from_email")
 	fromName := c.FormValue("from_name")
 
+	// Validate SMTP port
+	smtpPort, err := strconv.Atoi(smtpPortStr)
+	if err != nil || smtpPort <= 0 || smtpPort > 65535 {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "Invalid SMTP port",
+		})
+	}
+
 	// Create or update email settings
 	var settings models.EmailSettings
-	activeSettings, err := models.GetActiveEmailSettings(h.db)
-	if err != nil {
-		// Create new settings
+	// Try to get any existing settings (not just active ones)
+	if err := h.db.First(&settings).Error; err != nil {
+		// Create new settings if none exist
 		settings = models.EmailSettings{
-			Provider:       "smtp",
+			Provider:       c.FormValue("provider"), // Get provider from form
 			SMTPHost:       smtpHost,
 			SMTPPort:       smtpPort,
 			SMTPUsername:   smtpUsername,
@@ -117,7 +127,9 @@ func (h *DashboardHandler) EmailConfigUpdate(c *fiber.Ctx) error {
 		}
 	} else {
 		// Update existing settings
-		settings = *activeSettings
+		if provider := c.FormValue("provider"); provider != "" {
+			settings.Provider = provider
+		}
 		settings.SMTPHost = smtpHost
 		settings.SMTPPort = smtpPort
 		settings.SMTPUsername = smtpUsername
@@ -125,24 +137,29 @@ func (h *DashboardHandler) EmailConfigUpdate(c *fiber.Ctx) error {
 		settings.SMTPEncryption = smtpEncryption
 		settings.FromEmail = fromEmail
 		settings.FromName = fromName
+		settings.IsActive = true // Make it active when updating
 	}
 
 	// Save to database
 	if err := settings.Save(h.db); err != nil {
-		return c.Render("admin/email-config", fiber.Map{
+		return SafeRenderWithStatus(c, 500, "admin/email-config", fiber.Map{
 			"ShowNav":   true,
 			"Error":     fmt.Sprintf("Failed to save email configuration: %v", err),
 			"Config":    settings,
 			"CSRFToken": "",
-		})
+		}, fmt.Sprintf("Failed to save email configuration: %v", err))
 	}
 
-	return c.Render("admin/email-config", fiber.Map{
+	// Try to render success template, fallback to redirect
+	if renderErr := c.Render("admin/email-config", fiber.Map{
 		"ShowNav":   true,
 		"Success":   "Email configuration saved successfully",
 		"Config":    settings,
 		"CSRFToken": "",
-	})
+	}); renderErr != nil {
+		return c.Redirect("/admin/email-config")
+	}
+	return nil
 }
 
 func (h *DashboardHandler) EmailTestSend(c *fiber.Ctx) error {

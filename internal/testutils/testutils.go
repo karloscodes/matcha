@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/gofiber/fiber/v2"
+	htmlEngine "github.com/gofiber/template/html/v2"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -30,8 +31,26 @@ func SetupTestDB(t *testing.T) *gorm.DB {
 
 // SetupTestAppWithDB creates a minimal Fiber app with database context for handler testing
 func SetupTestAppWithDB(t *testing.T, db *gorm.DB) *fiber.App {
+	// Set up template engine for tests - use absolute path from project root
+	engine := htmlEngine.New("../../templates", ".gohtml")
+	engine.Reload(true)
+
+	// Add template functions
+	engine.AddFunc("dict", func(values ...interface{}) map[string]interface{} {
+		dict := make(map[string]interface{})
+		for i := 0; i < len(values); i += 2 {
+			if i+1 < len(values) {
+				key, ok := values[i].(string)
+				if ok {
+					dict[key] = values[i+1]
+				}
+			}
+		}
+		return dict
+	})
+
 	app := fiber.New(fiber.Config{
-		Views: nil, // No template engine for tests
+		Views: engine, // Use template engine for tests
 	})
 
 	// Add database to context
@@ -69,8 +88,26 @@ func CleanupTestDB(db *gorm.DB) {
 
 // SetupTestApp creates a basic Fiber app for unit testing handlers
 func SetupTestApp() *fiber.App {
+	// Set up template engine for tests - use absolute path from project root
+	engine := htmlEngine.New("../../templates", ".gohtml")
+	engine.Reload(true)
+
+	// Add template functions
+	engine.AddFunc("dict", func(values ...interface{}) map[string]interface{} {
+		dict := make(map[string]interface{})
+		for i := 0; i < len(values); i += 2 {
+			if i+1 < len(values) {
+				key, ok := values[i].(string)
+				if ok {
+					dict[key] = values[i+1]
+				}
+			}
+		}
+		return dict
+	})
+
 	app := fiber.New(fiber.Config{
-		Views: nil, // No template engine for tests
+		Views: engine, // Use template engine for tests
 	})
 	return app
 }
@@ -79,8 +116,26 @@ func SetupTestApp() *fiber.App {
 func SetupIntegrationApp(t *testing.T) (*fiber.App, *gorm.DB) {
 	db := SetupTestDB(t)
 
+	// Set up template engine for tests - use absolute path from project root
+	engine := htmlEngine.New("../../templates", ".gohtml")
+	engine.Reload(true)
+
+	// Add template functions
+	engine.AddFunc("dict", func(values ...interface{}) map[string]interface{} {
+		dict := make(map[string]interface{})
+		for i := 0; i < len(values); i += 2 {
+			if i+1 < len(values) {
+				key, ok := values[i].(string)
+				if ok {
+					dict[key] = values[i+1]
+				}
+			}
+		}
+		return dict
+	})
+
 	app := fiber.New(fiber.Config{
-		Views: nil, // No template engine for tests
+		Views: engine, // Use template engine for tests
 	})
 
 	// Add database to context

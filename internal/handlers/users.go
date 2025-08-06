@@ -17,7 +17,7 @@ func NewUsersHandler(db *gorm.DB) *UsersHandler {
 }
 
 func (h *UsersHandler) LoginPage(c *fiber.Ctx) error {
-	return c.Render("admin/users/login", fiber.Map{
+	return SafeRender(c, "admin/users/login", fiber.Map{
 		"ShowNav": false,
 		"Title":   "Login",
 	})
@@ -27,21 +27,30 @@ func (h *UsersHandler) Login(c *fiber.Ctx) error {
 	username := c.FormValue("username")
 	password := c.FormValue("password")
 
+	// Validate input
+	if username == "" || password == "" {
+		return SafeRenderWithStatus(c, 200, "admin/users/login", fiber.Map{
+			"Error":   "Username and password are required",
+			"ShowNav": false,
+			"Title":   "Login",
+		}, "Username and password are required")
+	}
+
 	var admin models.AdminUser
 	if err := h.db.Where("username = ?", username).First(&admin).Error; err != nil {
-		return c.Render("admin/users/login", fiber.Map{
+		return SafeRenderWithStatus(c, 200, "admin/users/login", fiber.Map{
 			"Error":   "Invalid username or password",
 			"ShowNav": false,
 			"Title":   "Login",
-		})
+		}, "Invalid username or password")
 	}
 
 	if !admin.CheckPassword(password) {
-		return c.Render("admin/users/login", fiber.Map{
+		return SafeRenderWithStatus(c, 200, "admin/users/login", fiber.Map{
 			"Error":   "Invalid username or password",
 			"ShowNav": false,
 			"Title":   "Login",
-		})
+		}, "Invalid username or password")
 	}
 
 	if err := middleware.Login(c, admin.ID); err != nil {

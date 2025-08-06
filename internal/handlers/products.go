@@ -23,7 +23,7 @@ func (h *ProductsHandler) Index(c *fiber.Ctx) error {
 	var products []models.Product
 	h.db.Preload("LicenseKeys").Find(&products)
 
-	return c.Render("admin/products/index", fiber.Map{
+	return SafeRender(c, "admin/products/index", fiber.Map{
 		"ShowNav":   true,
 		"PageType":  "products-index",
 		"Products":  products,
@@ -32,7 +32,7 @@ func (h *ProductsHandler) Index(c *fiber.Ctx) error {
 }
 
 func (h *ProductsHandler) New(c *fiber.Ctx) error {
-	return c.Render("admin/products/new", fiber.Map{
+	return SafeRender(c, "admin/products/new", fiber.Map{
 		"ShowNav":   true,
 		"PageType":  "products-new",
 		"CSRFToken": "",
@@ -44,8 +44,16 @@ func (h *ProductsHandler) Create(c *fiber.Ctx) error {
 	log.Printf("ProductsCreate: Form values - name=%s, description=%s, version=%s",
 		c.FormValue("name"), c.FormValue("description"), c.FormValue("version"))
 
+	// Validate required fields
+	name := c.FormValue("name")
+	if name == "" {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "Product name is required",
+		})
+	}
+
 	product := models.Product{
-		Name:        c.FormValue("name"),
+		Name:        name,
 		Description: c.FormValue("description"),
 		Version:     c.FormValue("version"),
 	}
@@ -69,11 +77,11 @@ func (h *ProductsHandler) Create(c *fiber.Ctx) error {
 		return db.Create(&product).Error
 	})
 	if err != nil {
-		return c.Render("admin/products/new", fiber.Map{
+		return SafeRenderWithStatus(c, 500, "admin/products/new", fiber.Map{
 			"Error":   "Failed to create product: " + err.Error(),
 			"Product": product,
 			"ShowNav": true,
-		})
+		}, "Failed to create product: "+err.Error())
 	}
 
 	return c.Redirect("/admin/products")
@@ -86,11 +94,17 @@ func (h *ProductsHandler) Show(c *fiber.Ctx) error {
 		return c.Status(404).SendString("Product not found")
 	}
 
-	return c.Render("admin/products/show", fiber.Map{
+	// Try to render template, fallback to JSON if no template engine
+	if err := c.Render("admin/products/show", fiber.Map{
 		"ShowNav":  true,
 		"PageType": "products-show",
 		"Product":  product,
-	})
+	}); err != nil {
+		return c.Status(200).JSON(fiber.Map{
+			"product": product,
+		})
+	}
+	return nil
 }
 
 func (h *ProductsHandler) Edit(c *fiber.Ctx) error {
@@ -100,12 +114,18 @@ func (h *ProductsHandler) Edit(c *fiber.Ctx) error {
 		return c.Status(404).SendString("Product not found")
 	}
 
-	return c.Render("admin/products/edit", fiber.Map{
+	// Try to render template, fallback to JSON if no template engine
+	if err := c.Render("admin/products/edit", fiber.Map{
 		"ShowNav":   true,
 		"PageType":  "products-edit",
 		"Product":   product,
 		"CSRFToken": "",
-	})
+	}); err != nil {
+		return c.Status(200).JSON(fiber.Map{
+			"product": product,
+		})
+	}
+	return nil
 }
 
 func (h *ProductsHandler) Update(c *fiber.Ctx) error {
@@ -120,9 +140,16 @@ func (h *ProductsHandler) Update(c *fiber.Ctx) error {
 		return c.Status(404).SendString("Product not found")
 	}
 
-	product.Name = c.FormValue("name")
-	product.Description = c.FormValue("description")
-	product.Version = c.FormValue("version")
+	// Only update non-empty fields
+	if name := c.FormValue("name"); name != "" {
+		product.Name = name
+	}
+	if description := c.FormValue("description"); description != "" {
+		product.Description = description
+	}
+	if version := c.FormValue("version"); version != "" {
+		product.Version = version
+	}
 
 	if days, err := strconv.Atoi(c.FormValue("default_expiration_days")); err == nil {
 		product.DefaultExpirationDays = days
@@ -136,11 +163,17 @@ func (h *ProductsHandler) Update(c *fiber.Ctx) error {
 		return db.Save(&product).Error
 	})
 	if err != nil {
-		return c.Render("admin/products/edit", fiber.Map{
+		// Try to render template, fallback to JSON error
+		if renderErr := c.Render("admin/products/edit", fiber.Map{
 			"Error":     "Failed to update product: " + err.Error(),
 			"Product":   product,
 			"CSRFToken": "",
-		})
+		}); renderErr != nil {
+			return c.Status(400).JSON(fiber.Map{
+				"error": "Failed to update product: " + err.Error(),
+			})
+		}
+		return nil
 	}
 
 	return c.Redirect("/admin/products/" + c.Params("id"))
@@ -148,6 +181,17 @@ func (h *ProductsHandler) Update(c *fiber.Ctx) error {
 
 func (h *ProductsHandler) Delete(c *fiber.Ctx) error {
 	id, _ := strconv.Atoi(c.Params("id"))
+
+	// Check if product has associated license keys
+	var licenseKeyCount int64
+	h.db.Model(&models.LicenseKey{}).Where("product_id = ?", id).Count(&licenseKeyCount)
+
+	if licenseKeyCount > 0 {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "Cannot delete product with associated license keys",
+		})
+	}
+
 	if err := h.db.Delete(&models.Product{}, id).Error; err != nil {
 		return c.Status(500).SendString("Failed to delete product")
 	}

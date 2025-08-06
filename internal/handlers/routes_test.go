@@ -29,39 +29,39 @@ func setupTestRoutes() (*fiber.App, *gorm.DB) {
 	admin := app.Group("/admin")
 
 	// Login routes
-	admin.Get("/login", testutils.MockRender(usersHandler.LoginPage))
-	admin.Post("/login", testutils.MockRender(usersHandler.Login))
+	admin.Get("/login", usersHandler.LoginPage)
+	admin.Post("/login", usersHandler.Login)
 	admin.Get("/logout", usersHandler.Logout)
 
 	// Dashboard
-	admin.Get("/", testutils.MockRender(dashboardHandler.Dashboard))
+	admin.Get("/", dashboardHandler.Dashboard)
 
 	// Products
-	admin.Get("/products", testutils.MockRender(productsHandler.Index))
-	admin.Get("/products/new", testutils.MockRender(productsHandler.New))
+	admin.Get("/products", productsHandler.Index)
+	admin.Get("/products/new", productsHandler.New)
 	admin.Post("/products", productsHandler.Create)
-	admin.Get("/products/:id", testutils.MockRender(productsHandler.Show))
-	admin.Get("/products/:id/edit", testutils.MockRender(productsHandler.Edit))
+	admin.Get("/products/:id", productsHandler.Show)
+	admin.Get("/products/:id/edit", productsHandler.Edit)
 	admin.Put("/products/:id", productsHandler.Update)
 	admin.Post("/products/:id", productsHandler.Update) // For form method override
 	admin.Delete("/products/:id", productsHandler.Delete)
 
 	// Customers
-	admin.Get("/customers", testutils.MockRender(customersHandler.Index))
-	admin.Get("/customers/new", testutils.MockRender(customersHandler.New))
+	admin.Get("/customers", customersHandler.Index)
+	admin.Get("/customers/new", customersHandler.New)
 	admin.Post("/customers", customersHandler.Create)
-	admin.Get("/customers/:id", testutils.MockRender(customersHandler.Show))
-	admin.Get("/customers/:id/edit", testutils.MockRender(customersHandler.Edit))
+	admin.Get("/customers/:id", customersHandler.Show)
+	admin.Get("/customers/:id/edit", customersHandler.Edit)
 	admin.Put("/customers/:id", customersHandler.Update)
 	admin.Post("/customers/:id", customersHandler.Update) // For form method override
 	admin.Delete("/customers/:id", customersHandler.Delete)
 
 	// License Keys
-	admin.Get("/license-keys", testutils.MockRender(licenseKeysHandler.Index))
-	admin.Get("/license-keys/new", testutils.MockRender(licenseKeysHandler.New))
+	admin.Get("/license-keys", licenseKeysHandler.Index)
+	admin.Get("/license-keys/new", licenseKeysHandler.New)
 	admin.Post("/license-keys", licenseKeysHandler.Create)
-	admin.Get("/license-keys/:id", testutils.MockRender(licenseKeysHandler.Show))
-	admin.Get("/license-keys/:id/edit", testutils.MockRender(licenseKeysHandler.Edit))
+	admin.Get("/license-keys/:id", licenseKeysHandler.Show)
+	admin.Get("/license-keys/:id/edit", licenseKeysHandler.Edit)
 	admin.Put("/license-keys/:id", licenseKeysHandler.Update)
 	admin.Post("/license-keys/:id", licenseKeysHandler.Update) // For form method override
 	admin.Delete("/license-keys/:id", licenseKeysHandler.Delete)
@@ -70,9 +70,9 @@ func setupTestRoutes() (*fiber.App, *gorm.DB) {
 	admin.Post("/license-keys/:id/send-email", licenseKeysHandler.SendEmail)
 
 	// Email Configuration
-	admin.Get("/email-config", testutils.MockRender(dashboardHandler.EmailConfigPage))
-	admin.Post("/email-config", testutils.MockRender(dashboardHandler.EmailConfigUpdate))
-	admin.Post("/email-config/test", testutils.MockRender(dashboardHandler.EmailTestSend))
+	admin.Get("/email-config", dashboardHandler.EmailConfigPage)
+	admin.Post("/email-config", dashboardHandler.EmailConfigUpdate)
+	admin.Post("/email-config/test", dashboardHandler.EmailTestSend)
 
 	return app, db
 }
