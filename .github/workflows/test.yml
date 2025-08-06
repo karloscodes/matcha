@@ -1,0 +1,115 @@
+name: Test
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+  push:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        go-version: [1.21.x, 1.22.x]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ matrix.go-version }}
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Cache Go modules
+      uses: actions/cache@v3
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
+    - name: Cache Node modules
+      uses: actions/cache@v3
+      with:
+        path: ~/.npm
+        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
+
+    - name: Install Go dependencies
+      run: go mod download
+
+    - name: Install Node dependencies
+      run: npm install
+
+    - name: Build CSS
+      run: npm run build-css-prod
+
+    - name: Run go vet
+      run: go vet ./...
+
+    - name: Run go fmt check
+      run: |
+        if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
+          echo "The following files are not formatted:"
+          gofmt -s -l .
+          exit 1
+        fi
+
+    - name: Run tests
+      run: go test -v -race -coverprofile=coverage.out ./...
+      env:
+        GO_ENV: test
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.out
+        flags: unittests
+        name: codecov-umbrella
+
+    - name: Build application
+      run: go build -v ./...
+
+  lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: 1.21.x
+
+    - name: golangci-lint
+      uses: golangci/golangci-lint-action@v3
+      with:
+        version: latest
+        args: --timeout=5m
+
+  security:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: 1.21.x
+
+    - name: Run Gosec Security Scanner
+      uses: securecodewarrior/github-action-gosec@master
+      with:
+        args: './...'
