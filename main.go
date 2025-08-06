@@ -89,6 +89,29 @@ func main() {
 	// Initialize Fiber app
 	app := fiber.New(fiber.Config{
 		Views: engine,
+		ErrorHandler: func(c *fiber.Ctx, err error) error {
+			code := fiber.StatusInternalServerError
+			if e, ok := err.(*fiber.Error); ok {
+				code = e.Code
+			}
+			
+			switch code {
+			case 404:
+				return c.Status(404).Render("errors/404", fiber.Map{
+					"Title": "Page Not Found",
+				})
+			case 500:
+				return c.Status(500).Render("errors/500", fiber.Map{
+					"Title": "Server Error", 
+					"Error": err.Error(),
+				})
+			default:
+				return c.Status(code).Render("errors/500", fiber.Map{
+					"Title": "Error",
+					"Error": err.Error(),
+				})
+			}
+		},
 	})
 
 	// Middleware
@@ -159,65 +182,60 @@ func setupRoutes(app *fiber.App, dashboardHandler *handlers.DashboardHandler, us
 		return c.Redirect("/admin/")
 	})
 
-	// Admin routes
-	admin := app.Group("/admin")
+	// Admin login routes (no auth required)
+	app.Get("/admin/login", usersHandler.LoginPage)
+	app.Post("/admin/login", usersHandler.Login)
+	app.Get("/admin/logout", usersHandler.Logout)
 
-	// Login routes (no CSRF protection) - MUST BE FIRST
-	admin.Get("/login", usersHandler.LoginPage)
-	admin.Post("/login", usersHandler.Login)
-	admin.Get("/logout", usersHandler.Logout)
-
-	// Authentication middleware for protected routes
-	adminProtected := admin.Group("/", middleware.RequireAuth)
-
-	adminProtected.Get("/", dashboardHandler.Dashboard)
+	// Dashboard route with auth
+	app.Get("/admin/", middleware.RequireAuth, dashboardHandler.Dashboard)
 
 	// Products
-	adminProtected.Get("/products", productsHandler.Index)
-	adminProtected.Get("/products/new", productsHandler.New)
-	adminProtected.Post("/products", productsHandler.Create)
-	adminProtected.Get("/products/:id", productsHandler.Show)
-	adminProtected.Get("/products/:id/edit", productsHandler.Edit)
-	adminProtected.Put("/products/:id", productsHandler.Update)
-	adminProtected.Post("/products/:id", productsHandler.Update) // For form method override
-	adminProtected.Delete("/products/:id", productsHandler.Delete)
+	app.Get("/admin/products", middleware.RequireAuth, productsHandler.Index)
+	app.Get("/admin/products/new", middleware.RequireAuth, productsHandler.New)
+	app.Post("/admin/products", middleware.RequireAuth, productsHandler.Create)
+	app.Get("/admin/products/:id", middleware.RequireAuth, productsHandler.Show)
+	app.Get("/admin/products/:id/edit", middleware.RequireAuth, productsHandler.Edit)
+	app.Put("/admin/products/:id", middleware.RequireAuth, productsHandler.Update)
+	app.Post("/admin/products/:id", middleware.RequireAuth, productsHandler.Update) // For form method override
+	app.Delete("/admin/products/:id", middleware.RequireAuth, productsHandler.Delete)
 
 	// Customers
-	adminProtected.Get("/customers", customersHandler.Index)
-	adminProtected.Get("/customers/new", customersHandler.New)
-	adminProtected.Post("/customers", customersHandler.Create)
-	adminProtected.Get("/customers/:id", customersHandler.Show)
-	adminProtected.Get("/customers/:id/edit", customersHandler.Edit)
-	adminProtected.Put("/customers/:id", customersHandler.Update)
-	adminProtected.Post("/customers/:id", customersHandler.Update) // For form method override
-	adminProtected.Delete("/customers/:id", customersHandler.Delete)
+	app.Get("/admin/customers", middleware.RequireAuth, customersHandler.Index)
+	app.Get("/admin/customers/new", middleware.RequireAuth, customersHandler.New)
+	app.Post("/admin/customers", middleware.RequireAuth, customersHandler.Create)
+	app.Get("/admin/customers/:id", middleware.RequireAuth, customersHandler.Show)
+	app.Get("/admin/customers/:id/edit", middleware.RequireAuth, customersHandler.Edit)
+	app.Put("/admin/customers/:id", middleware.RequireAuth, customersHandler.Update)
+	app.Post("/admin/customers/:id", middleware.RequireAuth, customersHandler.Update) // For form method override
+	app.Delete("/admin/customers/:id", middleware.RequireAuth, customersHandler.Delete)
 
 	// License Keys
-	adminProtected.Get("/license-keys", licenseKeysHandler.Index)
-	adminProtected.Get("/license-keys/new", licenseKeysHandler.New)
-	adminProtected.Post("/license-keys", licenseKeysHandler.Create)
-	adminProtected.Get("/license-keys/:id", licenseKeysHandler.Show)
-	adminProtected.Get("/license-keys/:id/edit", licenseKeysHandler.Edit)
-	adminProtected.Put("/license-keys/:id", licenseKeysHandler.Update)
-	adminProtected.Post("/license-keys/:id", licenseKeysHandler.Update) // For form method override
-	adminProtected.Delete("/license-keys/:id", licenseKeysHandler.Delete)
-	adminProtected.Post("/license-keys/:id/revoke", licenseKeysHandler.Revoke)
-	adminProtected.Post("/license-keys/:id/reactivate", licenseKeysHandler.Reactivate)
-	adminProtected.Post("/license-keys/:id/send-email", licenseKeysHandler.SendEmail)
+	app.Get("/admin/license-keys", middleware.RequireAuth, licenseKeysHandler.Index)
+	app.Get("/admin/license-keys/new", middleware.RequireAuth, licenseKeysHandler.New)
+	app.Post("/admin/license-keys", middleware.RequireAuth, licenseKeysHandler.Create)
+	app.Get("/admin/license-keys/:id", middleware.RequireAuth, licenseKeysHandler.Show)
+	app.Get("/admin/license-keys/:id/edit", middleware.RequireAuth, licenseKeysHandler.Edit)
+	app.Put("/admin/license-keys/:id", middleware.RequireAuth, licenseKeysHandler.Update)
+	app.Post("/admin/license-keys/:id", middleware.RequireAuth, licenseKeysHandler.Update) // For form method override
+	app.Delete("/admin/license-keys/:id", middleware.RequireAuth, licenseKeysHandler.Delete)
+	app.Post("/admin/license-keys/:id/revoke", middleware.RequireAuth, licenseKeysHandler.Revoke)
+	app.Post("/admin/license-keys/:id/reactivate", middleware.RequireAuth, licenseKeysHandler.Reactivate)
+	app.Post("/admin/license-keys/:id/send-email", middleware.RequireAuth, licenseKeysHandler.SendEmail)
 
 	// Settings
-	adminProtected.Get("/settings/email", settingsHandler.ShowEmailSettings)
-	adminProtected.Post("/settings/email", settingsHandler.CreateEmailSettings)
-	adminProtected.Post("/settings/email/:id", settingsHandler.UpdateEmailSettings)
-	adminProtected.Put("/settings/email/:id", settingsHandler.UpdateEmailSettings)
-	adminProtected.Post("/settings/email/:id/activate", settingsHandler.ActivateEmailSettings)
-	adminProtected.Delete("/settings/email/:id", settingsHandler.DeleteEmailSettings)
-	adminProtected.Post("/settings/email/test", settingsHandler.TestEmailSettings)
+	app.Get("/admin/settings/email", middleware.RequireAuth, settingsHandler.ShowEmailSettings)
+	app.Post("/admin/settings/email", middleware.RequireAuth, settingsHandler.CreateEmailSettings)
+	app.Post("/admin/settings/email/:id", middleware.RequireAuth, settingsHandler.UpdateEmailSettings)
+	app.Put("/admin/settings/email/:id", middleware.RequireAuth, settingsHandler.UpdateEmailSettings)
+	app.Post("/admin/settings/email/:id/activate", middleware.RequireAuth, settingsHandler.ActivateEmailSettings)
+	app.Delete("/admin/settings/email/:id", middleware.RequireAuth, settingsHandler.DeleteEmailSettings)
+	app.Post("/admin/settings/email/test", middleware.RequireAuth, settingsHandler.TestEmailSettings)
 
 	// Email Configuration (legacy - keeping for compatibility)
-	adminProtected.Get("/email-config", dashboardHandler.EmailConfigPage)
-	adminProtected.Post("/email-config", dashboardHandler.EmailConfigUpdate)
-	adminProtected.Post("/email-config/test", dashboardHandler.EmailTestSend)
+	app.Get("/admin/email-config", middleware.RequireAuth, dashboardHandler.EmailConfigPage)
+	app.Post("/admin/email-config", middleware.RequireAuth, dashboardHandler.EmailConfigUpdate)
+	app.Post("/admin/email-config/test", middleware.RequireAuth, dashboardHandler.EmailTestSend)
 
 	// API routes
 	api := app.Group("/api/v1")
@@ -227,4 +245,12 @@ func setupRoutes(app *fiber.App, dashboardHandler *handlers.DashboardHandler, us
 	api.Post("/webhooks/stripe", webhookHandler.StripeWebhook)
 	api.Post("/webhooks/gumroad", webhookHandler.GumroadWebhook)
 	api.Post("/webhooks/paypal", webhookHandler.PayPalWebhook)
+	
+	
+	// 404 handler - must be last
+	app.Use(func(c *fiber.Ctx) error {
+		return c.Status(404).Render("errors/404", fiber.Map{
+			"Title": "Page Not Found",
+		})
+	})
 }
