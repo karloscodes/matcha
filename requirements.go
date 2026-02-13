@@ -3,10 +3,16 @@ package matcha
 import (
 	"fmt"
 	"net"
+	"os"
 )
 
 // checkPorts verifies that required ports are available.
 func (m *Matcha) checkPorts() error {
+	// Skip port checking in test environment
+	if os.Getenv("SKIP_PORT_CHECKING") == "1" {
+		return nil
+	}
+
 	ports := []int{80, 443}
 	var unavailable []int
 

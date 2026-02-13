@@ -91,8 +91,8 @@ func (m *Matcha) AppContainerName(slot int) string {
 func (m *Matcha) Install() error {
 	m.printWelcome()
 
-	// Check root
-	if os.Geteuid() != 0 {
+	// Check root (skip in test environment)
+	if os.Geteuid() != 0 && os.Getenv("ENV") != "test" {
 		return fmt.Errorf("installation requires root privileges")
 	}
 
