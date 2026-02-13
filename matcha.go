@@ -99,7 +99,7 @@ func (m *Matcha) Install() error {
 	// Collect config from user FIRST (before installing anything)
 	// This includes domain prompt, DNS check, and confirmation
 	if err := m.collectConfig(); err != nil {
-		return fmt.Errorf("configuration failed: %w", err)
+		return fmt.Errorf("failed to collect configuration: %w", err)
 	}
 
 	// Now start the installation with spinners
@@ -135,7 +135,7 @@ func (m *Matcha) Install() error {
 	sp = m.StartSpinner("Configuring")
 	if err := m.setupConfig(); err != nil {
 		sp.Stop(false)
-		return fmt.Errorf("configuration failed: %w", err)
+		return fmt.Errorf("failed to configure system: %w", err)
 	}
 	sp.Stop(true)
 

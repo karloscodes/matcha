@@ -109,7 +109,7 @@ func (m *Matcha) setupConfig() error {
 
 	// Create install directory
 	if err := os.MkdirAll(m.config.InstallDir, 0755); err != nil {
-		return fmt.Errorf("failed to create install dir: %w", err)
+		return fmt.Errorf("failed to create install dir: failed to create directory: %w", err)
 	}
 
 	// Create subdirectories
@@ -236,10 +236,10 @@ func (m *Matcha) saveEnv(data *envData) error {
 // validateDomain performs basic domain validation.
 func (m *Matcha) validateDomain(domain string) error {
 	if strings.Contains(domain, " ") {
-		return fmt.Errorf("domain cannot contain spaces")
+		return fmt.Errorf("validation failed for field 'domain' with value '%s': invalid domain format", domain)
 	}
 	if strings.HasPrefix(domain, "http://") || strings.HasPrefix(domain, "https://") {
-		return fmt.Errorf("domain should not include protocol")
+		return fmt.Errorf("validation failed for field 'domain' with value '%s': invalid domain format", domain)
 	}
 	if !strings.Contains(domain, ".") && domain != "localhost" {
 		return fmt.Errorf("invalid domain format")

@@ -39,15 +39,17 @@ func (m *Matcha) checkDNS(domain string) *dnsStatus {
 	}
 
 	status.Found = true
-	status.DomainIP = ips[0].String()
 
-	// Check if any IP matches server IP
+	// Collect all IPs as string
+	var ipStrings []string
 	for _, ip := range ips {
+		ipStrings = append(ipStrings, ip.String())
+		// Check if any IP matches server IP
 		if ip.String() == status.ServerIP {
 			status.MatchIP = true
-			break
 		}
 	}
+	status.DomainIP = strings.Join(ipStrings, ", ")
 
 	return status
 }
