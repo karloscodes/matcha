@@ -2,6 +2,7 @@ package matcha
 
 import (
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -75,7 +76,12 @@ func (s *Spinner) Stop(success bool) {
 // printWelcome prints the installer welcome message.
 func (m *Matcha) printWelcome() {
 	fmt.Println()
-	fmt.Println(bold(m.config.Name + " Installer"))
+	// Capitalize first letter for display
+	title := m.config.Name
+	if len(title) > 0 {
+		title = strings.ToUpper(title[:1]) + title[1:]
+	}
+	fmt.Println(bold(title + " Installer"))
 	fmt.Println()
 	fmt.Println(dim("* Ports 80 and 443 must be available"))
 	fmt.Println(dim("* DNS pointing to this server recommended for SSL"))

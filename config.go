@@ -23,7 +23,7 @@ func (m *Matcha) collectConfig() error {
 
 	for {
 		// Prompt for domain
-		fmt.Print("Domain (e.g., analytics.example.com): ")
+		fmt.Printf("%s (e.g., analytics.example.com): ", bold("Domain"))
 		domain, err := reader.ReadString('\n')
 		if err != nil {
 			return fmt.Errorf("failed to read domain: %w", err)
@@ -31,41 +31,52 @@ func (m *Matcha) collectConfig() error {
 		domain = strings.TrimSpace(domain)
 
 		if domain == "" {
-			return fmt.Errorf("domain is required")
-		}
-
-		if err := m.validateDomain(domain); err != nil {
-			fmt.Printf("Error: %v\n\n", err)
+			fmt.Println("Error: Domain cannot be empty.")
 			continue
 		}
 
-		// Check DNS
-		fmt.Println()
-		fmt.Print(bold("Checking DNS... "))
-		dns := m.checkDNS(domain)
+		if err := m.validateDomain(domain); err != nil {
+			fmt.Printf("Error: %v\n", err)
+			continue
+		}
 
-		if !dns.Found {
-			fmt.Println("not found")
-			m.printDNSInstructions(domain, dns.ServerIP)
-		} else if !dns.MatchIP {
-			fmt.Printf("%s (wrong server)\n", dns.DomainIP)
+		// Check DNS - handle localhost specially
+		fmt.Println()
+		dnsReady := false
+		if isLocalhost(domain) {
+			fmt.Printf("%s %s (localhost, skipped)\n", bold("Checking DNS..."), domain)
 			fmt.Println()
-			fmt.Printf("%s %s -> %s\n", dim("Update A record:"), domain, dns.ServerIP)
-			fmt.Println(dim("SSL activates automatically once DNS propagates."))
-			fmt.Println()
+			dnsReady = true
+			m.dnsStatus = &dnsStatus{Found: true, MatchIP: true}
 		} else {
-			fmt.Printf("%s (this server)\n", green("✓ "+dns.DomainIP))
-			fmt.Println()
+			fmt.Print(bold("Checking DNS... "))
+			dns := m.checkDNS(domain)
+			m.dnsStatus = dns
+
+			if !dns.Found {
+				fmt.Println("not found")
+				m.printDNSInstructions(domain, dns.ServerIP)
+			} else if !dns.MatchIP {
+				fmt.Printf("%s (wrong server)\n", dns.DomainIP)
+				fmt.Println()
+				fmt.Printf("%s %s -> %s\n", dim("Update A record:"), domain, dns.ServerIP)
+				fmt.Println(dim("SSL activates automatically once DNS propagates."))
+				fmt.Println()
+			} else {
+				fmt.Printf("%s (this server)\n", green("✓ "+dns.DomainIP))
+				fmt.Println()
+				dnsReady = true
+			}
 		}
 
 		// Show summary
 		fmt.Println(bold("Summary"))
 		fmt.Println()
 		fmt.Printf("  Domain:  %s\n", domain)
-		if !dns.Found || !dns.MatchIP {
-			fmt.Printf("  DNS:     %s\n", dim("Not ready (will continue anyway)"))
-		} else {
+		if dnsReady {
 			fmt.Printf("  DNS:     %s\n", green("✓ Ready"))
+		} else {
+			fmt.Printf("  DNS:     %s\n", dim("Not ready (will continue anyway)"))
 		}
 		fmt.Println()
 
@@ -78,8 +89,6 @@ func (m *Matcha) collectConfig() error {
 
 		confirm = strings.TrimSpace(strings.ToLower(confirm))
 		if confirm == "" || confirm == "y" || confirm == "yes" {
-			// Store DNS status for later
-			m.dnsStatus = dns
 			m.domain = domain
 			return nil
 		}
