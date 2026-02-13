@@ -3,6 +3,7 @@ package matcha
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 )
 
@@ -243,4 +244,66 @@ func (m *Matcha) Status() error {
 // GetConfig returns the current configuration.
 func (m *Matcha) GetConfig() Config {
 	return m.config
+}
+
+// SetImage changes the app image for subsequent deployments.
+func (m *Matcha) SetImage(image string) {
+	m.config.AppImage = image
+}
+
+// GetDomain reads the domain from the .env file.
+func (m *Matcha) GetDomain() (string, error) {
+	data, err := m.readEnv()
+	if err != nil {
+		return "", err
+	}
+	return data.Domain, nil
+}
+
+// Exec runs a command inside the app container.
+func (m *Matcha) Exec(args ...string) error {
+	// Find the running app container
+	containerName := m.AppContainerName(0)
+	if m.config.BlueGreen {
+		// Find which slot is active
+		if m.isRunning(m.AppContainerName(1)) {
+			containerName = m.AppContainerName(1)
+		} else if m.isRunning(m.AppContainerName(2)) {
+			containerName = m.AppContainerName(2)
+		}
+	}
+
+	execArgs := append([]string{"exec", containerName}, args...)
+	_, err := m.runDocker(execArgs...)
+	return err
+}
+
+// BackupDB creates a backup of the database and returns the backup path.
+func (m *Matcha) BackupDB() (string, error) {
+	backupDir := m.config.InstallDir + "/storage/backups"
+	dbPath := m.config.InstallDir + "/storage/" + m.config.Name + "-production.db"
+
+	// Ensure backup directory exists
+	if err := os.MkdirAll(backupDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create backup dir: %w", err)
+	}
+
+	// Generate backup filename with timestamp
+	backupPath := fmt.Sprintf("%s/backup_upgrade_%d.db", backupDir, os.Getpid())
+
+	// Use sqlite3 .backup command (database is on host filesystem)
+	cmd := exec.Command("sqlite3", dbPath, fmt.Sprintf(".backup '%s'", backupPath))
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("backup failed: %w", err)
+	}
+
+	return backupPath, nil
+}
+
+// Deploy triggers a deployment with current configuration.
+func (m *Matcha) Deploy() error {
+	if err := m.loadConfig(); err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+	return m.deploy()
 }
