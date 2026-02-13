@@ -28,7 +28,6 @@ type Config struct {
 // Matcha is the main orchestrator for deployments.
 type Matcha struct {
 	config Config
-	logger *Logger
 }
 
 // New creates a new Matcha instance with the given configuration.
@@ -52,7 +51,6 @@ func New(cfg Config) *Matcha {
 
 	return &Matcha{
 		config: cfg,
-		logger: NewLogger(),
 	}
 }
 
@@ -81,7 +79,7 @@ func (m *Matcha) AppContainerName(slot int) string {
 
 // Install runs the full installation process.
 func (m *Matcha) Install() error {
-	m.logger.Info("Installing %s", m.config.Name)
+	m.printWelcome()
 
 	// Check root
 	if os.Geteuid() != 0 {
@@ -89,14 +87,28 @@ func (m *Matcha) Install() error {
 	}
 
 	// Check ports
+	sp := m.StartSpinner("Checking ports")
 	if err := m.checkPorts(); err != nil {
+		sp.Stop(false)
 		return err
 	}
+	sp.Stop(true)
+
+	// Install SQLite
+	sp = m.StartSpinner("SQLite")
+	if err := m.ensureSQLite(); err != nil {
+		sp.Stop(false)
+		return fmt.Errorf("SQLite setup failed: %w", err)
+	}
+	sp.Stop(true)
 
 	// Install Docker
+	sp = m.StartSpinner("Docker")
 	if err := m.ensureDocker(); err != nil {
+		sp.Stop(false)
 		return fmt.Errorf("docker setup failed: %w", err)
 	}
+	sp.Stop(true)
 
 	// Collect config from user
 	if err := m.collectConfig(); err != nil {
@@ -104,67 +116,89 @@ func (m *Matcha) Install() error {
 	}
 
 	// Deploy
+	sp = m.StartSpinner("Deploying")
 	if err := m.deploy(); err != nil {
+		sp.Stop(false)
 		return fmt.Errorf("deployment failed: %w", err)
 	}
+	sp.Stop(true)
 
 	// Setup cron if enabled
 	if m.config.CronUpdates {
+		sp = m.StartSpinner("Cron")
 		if err := m.setupCron(); err != nil {
-			m.logger.Warn("cron setup failed: %v", err)
+			sp.Stop(false)
+			printWarn("cron setup failed: %v", err)
+		} else {
+			sp.Stop(true)
 		}
 	}
 
 	// Install binary
 	if err := m.installBinary(); err != nil {
-		m.logger.Warn("binary install failed: %v", err)
+		printWarn("binary install failed: %v", err)
 	}
 
-	m.logger.Success("Installation complete")
+	// Read domain for completion message
+	if data, err := m.readEnv(); err == nil {
+		m.printComplete(data.Domain, false, "")
+	} else {
+		printSuccess("Installation complete")
+	}
+
 	return nil
 }
 
 // Update pulls the latest image and performs a deployment.
 func (m *Matcha) Update() error {
-	m.logger.Info("Updating %s", m.config.Name)
+	printHeader("Updating " + m.config.Name)
 
 	if err := m.loadConfig(); err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
+	sp := m.StartSpinner("Pulling images")
 	if err := m.pullImages(); err != nil {
+		sp.Stop(false)
 		return fmt.Errorf("failed to pull images: %w", err)
 	}
+	sp.Stop(true)
 
+	sp = m.StartSpinner("Deploying")
 	if err := m.deploy(); err != nil {
+		sp.Stop(false)
 		return fmt.Errorf("deployment failed: %w", err)
 	}
+	sp.Stop(true)
 
 	if err := m.upgradeBinary(); err != nil {
-		m.logger.Warn("binary upgrade failed: %v", err)
+		printWarn("binary upgrade failed: %v", err)
 	}
 
 	if err := m.pruneImages(); err != nil {
-		m.logger.Warn("image prune failed: %v", err)
+		printWarn("image prune failed: %v", err)
 	}
 
-	m.logger.Success("Update complete")
+	printSuccess("Update complete")
 	return nil
 }
 
 // Reload restarts containers with current config (no image pull).
 func (m *Matcha) Reload() error {
-	m.logger.Info("Reloading %s", m.config.Name)
+	printHeader("Reloading " + m.config.Name)
 
 	if err := m.loadConfig(); err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
+	sp := m.StartSpinner("Deploying")
 	if err := m.deploy(); err != nil {
+		sp.Stop(false)
 		return fmt.Errorf("deployment failed: %w", err)
 	}
+	sp.Stop(true)
 
-	m.logger.Success("Reload complete")
+	printSuccess("Reload complete")
 	return nil
 }
 
@@ -174,7 +208,7 @@ func (m *Matcha) RestoreDB() error {
 		return fmt.Errorf("backups not enabled for this application")
 	}
 
-	m.logger.Info("Restoring database for %s", m.config.Name)
+	printHeader("Restoring database for " + m.config.Name)
 
 	backups, err := m.listBackups()
 	if err != nil {
@@ -190,11 +224,14 @@ func (m *Matcha) RestoreDB() error {
 		return fmt.Errorf("backup selection failed: %w", err)
 	}
 
+	sp := m.StartSpinner("Restoring")
 	if err := m.restoreBackup(selected); err != nil {
+		sp.Stop(false)
 		return fmt.Errorf("restore failed: %w", err)
 	}
+	sp.Stop(true)
 
-	m.logger.Success("Database restored")
+	printSuccess("Database restored")
 	return nil
 }
 

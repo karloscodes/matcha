@@ -11,15 +11,15 @@ import (
 )
 
 // TestInstallInVM runs the full install process in a Multipass VM.
-// This test is skipped in short mode and requires multipass to be installed.
+// This test is skipped in short mode and requires orb to be installed.
 func TestInstallInVM(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping VM integration test in short mode")
 	}
 
-	// Check multipass is available
-	if _, err := exec.LookPath("multipass"); err != nil {
-		t.Skip("multipass not installed, skipping VM test")
+	// Check orb is available
+	if _, err := exec.LookPath("orb"); err != nil {
+		t.Skip("orb not installed, skipping VM test")
 	}
 
 	// Build a test binary
@@ -69,8 +69,8 @@ func TestUpdateInVM(t *testing.T) {
 		t.Skip("Skipping VM integration test in short mode")
 	}
 
-	if _, err := exec.LookPath("multipass"); err != nil {
-		t.Skip("multipass not installed, skipping VM test")
+	if _, err := exec.LookPath("orb"); err != nil {
+		t.Skip("orb not installed, skipping VM test")
 	}
 
 	// First install
@@ -166,6 +166,13 @@ replace github.com/karloscodes/matcha => ` + findProjectRoot(t) + `
 `
 	if err := os.WriteFile(modFile, []byte(modContent), 0644); err != nil {
 		t.Fatalf("Failed to write go.mod: %v", err)
+	}
+
+	// Run go mod tidy
+	tidyCmd := exec.Command("go", "mod", "tidy")
+	tidyCmd.Dir = tmpDir
+	if out, err := tidyCmd.CombinedOutput(); err != nil {
+		t.Fatalf("Failed to run go mod tidy: %v\n%s", err, out)
 	}
 
 	// Build for Linux (VMs run Linux)

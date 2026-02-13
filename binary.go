@@ -25,7 +25,6 @@ func (m *Matcha) installBinary() error {
 		return fmt.Errorf("failed to write binary: %w", err)
 	}
 
-	m.logger.Info("Binary installed to %s", m.config.BinaryPath)
 	return nil
 }
 

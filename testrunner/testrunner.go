@@ -1,5 +1,5 @@
 // Package testrunner provides utilities for running integration tests
-// in isolated environments using Multipass VMs.
+// in isolated environments using OrbStack VMs.
 package testrunner
 
 import (
@@ -93,49 +93,22 @@ func (r *TestRunner) runInCI() error {
 	return r.runWithTimeout(cmd)
 }
 
-// runInVM provisions a Multipass VM and runs the binary inside
+// runInVM provisions an OrbStack VM and runs the binary inside
 func (r *TestRunner) runInVM() error {
-	r.logf("Running in Multipass VM")
+	r.logf("Running in OrbStack VM")
 
-	// Check multipass is available
-	if _, err := exec.LookPath("multipass"); err != nil {
-		return fmt.Errorf("multipass not found: %w", err)
+	// Check orb is available
+	if _, err := exec.LookPath("orb"); err != nil {
+		return fmt.Errorf("orb not found: %w", err)
 	}
 
 	// Cleanup existing VM
 	r.logf("Cleaning up existing VM: %s", r.Config.VMName)
-	exec.Command("multipass", "delete", r.Config.VMName, "--purge").Run()
-
-	// Prepare SSH key for cloud-init
-	sshKeyPath := filepath.Join(os.Getenv("HOME"), ".ssh", "id_ed25519.pub")
-	if _, err := os.Stat(sshKeyPath); os.IsNotExist(err) {
-		privateKeyPath := strings.TrimSuffix(sshKeyPath, ".pub")
-		r.logf("Generating SSH key pair...")
-		if err := exec.Command("ssh-keygen", "-t", "ed25519", "-f", privateKeyPath, "-N", "").Run(); err != nil {
-			return fmt.Errorf("failed to generate SSH key: %w", err)
-		}
-	}
-
-	pubKey, err := os.ReadFile(sshKeyPath)
-	if err != nil {
-		return fmt.Errorf("failed to read SSH key: %w", err)
-	}
-
-	cloudInit := fmt.Sprintf("#cloud-config\nusers:\n  - default\n  - name: ubuntu\n    ssh_authorized_keys:\n      - %s\n", strings.TrimSpace(string(pubKey)))
-	cloudInitPath := filepath.Join(os.TempDir(), "matcha-cloud-init.yaml")
-	if err := os.WriteFile(cloudInitPath, []byte(cloudInit), 0644); err != nil {
-		return fmt.Errorf("failed to write cloud-init: %w", err)
-	}
+	exec.Command("orb", "delete", r.Config.VMName, "-f").Run()
 
 	// Launch VM
 	r.logf("Launching VM: %s", r.Config.VMName)
-	launchCmd := exec.Command("multipass", "launch", "22.04",
-		"--name", r.Config.VMName,
-		"--cpus", "2",
-		"--memory", "2G",
-		"--disk", "10G",
-		"--cloud-init", cloudInitPath,
-	)
+	launchCmd := exec.Command("orb", "create", "ubuntu:22.04", r.Config.VMName)
 	launchCmd.Stdout = r.Logger
 	launchCmd.Stderr = r.Logger
 
@@ -145,18 +118,14 @@ func (r *TestRunner) runInVM() error {
 
 	// Wait for VM to be ready
 	r.logf("Waiting for VM to be ready")
-	for i := 0; i < 60; i++ {
-		out, _ := exec.Command("multipass", "info", r.Config.VMName).CombinedOutput()
-		if strings.Contains(string(out), "Running") {
+	for i := 0; i < 30; i++ {
+		out, _ := exec.Command("orb", "list").CombinedOutput()
+		if strings.Contains(string(out), r.Config.VMName) && strings.Contains(string(out), "running") {
 			r.logf("VM ready after %d seconds", i+1)
 			break
 		}
 		time.Sleep(time.Second)
 	}
-
-	// Set ENV=test
-	exec.Command("multipass", "exec", r.Config.VMName, "--",
-		"sudo", "sh", "-c", "echo 'export ENV=test' >> /etc/environment").Run()
 
 	// Copy binary to VM
 	r.logf("Copying binary to VM")
@@ -165,29 +134,35 @@ func (r *TestRunner) runInVM() error {
 		binaryName = filepath.Base(r.Config.BinaryPath)
 	}
 
-	copyCmd := exec.Command("multipass", "transfer", r.Config.BinaryPath,
-		fmt.Sprintf("%s:/home/ubuntu/%s", r.Config.VMName, binaryName))
+	// OrbStack allows running commands with file paths directly from host
+	// Copy by reading and writing through stdin
+	binaryData, err := os.ReadFile(r.Config.BinaryPath)
+	if err != nil {
+		return fmt.Errorf("failed to read binary: %w", err)
+	}
+
+	copyCmd := exec.Command("orb", "-m", r.Config.VMName, "-u", "root",
+		"sh", "-c", fmt.Sprintf("cat > /usr/local/bin/%s && chmod +x /usr/local/bin/%s", binaryName, binaryName))
+	copyCmd.Stdin = bytes.NewReader(binaryData)
 	if err := copyCmd.Run(); err != nil {
 		return fmt.Errorf("failed to copy binary: %w", err)
 	}
 
-	// Make executable and move to /usr/local/bin
-	exec.Command("multipass", "exec", r.Config.VMName, "--",
-		"chmod", "+x", "/home/ubuntu/"+binaryName).Run()
-	exec.Command("multipass", "exec", r.Config.VMName, "--",
-		"sudo", "mv", "/home/ubuntu/"+binaryName, "/usr/local/bin/"+binaryName).Run()
-
 	// Set environment variables
 	for k, v := range r.Config.EnvVars {
-		exec.Command("multipass", "exec", r.Config.VMName, "--",
-			"sudo", "sh", "-c", fmt.Sprintf("echo 'export %s=%s' >> /etc/environment", k, v)).Run()
+		exec.Command("orb", "-m", r.Config.VMName, "-u", "root",
+			"sh", "-c", fmt.Sprintf("echo 'export %s=%s' >> /etc/environment", k, v)).Run()
 	}
 
-	// Run the command
-	cmdParts := []string{"exec", r.Config.VMName, "--", "sudo", "/usr/local/bin/" + binaryName}
-	cmdParts = append(cmdParts, r.Config.Args...)
+	// Set ENV=test
+	exec.Command("orb", "-m", r.Config.VMName, "-u", "root",
+		"sh", "-c", "echo 'export ENV=test' >> /etc/environment").Run()
 
-	cmd := exec.Command("multipass", cmdParts...)
+	// Build the command to run
+	cmdStr := fmt.Sprintf("/usr/local/bin/%s %s", binaryName, strings.Join(r.Config.Args, " "))
+
+	// Run the command
+	cmd := exec.Command("orb", "-m", r.Config.VMName, "-u", "root", "sh", "-c", cmdStr)
 	cmd.Stdin = strings.NewReader(r.Config.StdinInput)
 	cmd.Stdout = io.MultiWriter(&r.stdout, r.Logger)
 	cmd.Stderr = io.MultiWriter(&r.stderr, r.Logger)
@@ -197,7 +172,7 @@ func (r *TestRunner) runInVM() error {
 	// Cleanup unless KEEP_VM is set
 	if os.Getenv("KEEP_VM") != "1" {
 		r.logf("Cleaning up VM")
-		exec.Command("multipass", "delete", r.Config.VMName, "--purge").Run()
+		exec.Command("orb", "delete", r.Config.VMName, "-f").Run()
 	} else {
 		r.logf("Keeping VM for inspection: %s", r.Config.VMName)
 	}
@@ -207,31 +182,28 @@ func (r *TestRunner) runInVM() error {
 
 // GetVMIP returns the IP address of the VM
 func (r *TestRunner) GetVMIP() (string, error) {
-	out, err := exec.Command("multipass", "info", r.Config.VMName).Output()
+	out, err := exec.Command("orb", "-m", r.Config.VMName, "hostname", "-I").Output()
 	if err != nil {
 		return "", err
 	}
 
-	for _, line := range strings.Split(string(out), "\n") {
-		if strings.Contains(line, "IPv4") {
-			parts := strings.Fields(line)
-			if len(parts) > 1 {
-				return parts[1], nil
-			}
-		}
+	parts := strings.Fields(string(out))
+	if len(parts) > 0 {
+		return parts[0], nil
 	}
 	return "", fmt.Errorf("IP not found")
 }
 
 // RunCommand runs a command in the VM
 func (r *TestRunner) RunCommand(command string, sudo bool) (string, error) {
-	args := []string{"exec", r.Config.VMName, "--"}
+	var cmd *exec.Cmd
 	if sudo {
-		args = append(args, "sudo")
+		cmd = exec.Command("orb", "-m", r.Config.VMName, "-u", "root", "sh", "-c", command)
+	} else {
+		cmd = exec.Command("orb", "-m", r.Config.VMName, "sh", "-c", command)
 	}
-	args = append(args, "sh", "-c", command)
 
-	out, err := exec.Command("multipass", args...).CombinedOutput()
+	out, err := cmd.CombinedOutput()
 	return string(out), err
 }
 
@@ -242,7 +214,7 @@ func (r *TestRunner) CheckHealth(url string, attempts int) bool {
 		var err error
 
 		if r.env == LocalEnvironment {
-			out, err = exec.Command("multipass", "exec", r.Config.VMName, "--",
+			out, err = exec.Command("orb", "-m", r.Config.VMName,
 				"curl", "-sf", "-o", "/dev/null", "-w", "%{http_code}", url).CombinedOutput()
 		} else {
 			out, err = exec.Command("curl", "-sf", "-o", "/dev/null", "-w", "%{http_code}", url).CombinedOutput()

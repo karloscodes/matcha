@@ -4,40 +4,32 @@ import "fmt"
 
 // deploy handles the deployment logic.
 func (m *Matcha) deploy() error {
-	m.logger.Step("Deploying", "running")
-
 	// Read config
 	data, err := m.readEnv()
 	if err != nil {
-		m.logger.Step("Deploying", "failed")
 		return fmt.Errorf("failed to read config: %w", err)
 	}
 
 	// Create network
 	if err := m.createNetwork(); err != nil {
-		m.logger.Step("Deploying", "failed")
 		return fmt.Errorf("failed to create network: %w", err)
 	}
 
 	// Generate Caddyfile
 	if err := m.generateCaddyfile(data); err != nil {
-		m.logger.Step("Deploying", "failed")
 		return fmt.Errorf("failed to generate Caddyfile: %w", err)
 	}
 
 	if m.config.BlueGreen {
 		if err := m.deployBlueGreen(data); err != nil {
-			m.logger.Step("Deploying", "failed")
 			return err
 		}
 	} else {
 		if err := m.deploySingle(data); err != nil {
-			m.logger.Step("Deploying", "failed")
 			return err
 		}
 	}
 
-	m.logger.Step("Deploying", "done")
 	return nil
 }
 
@@ -73,7 +65,6 @@ func (m *Matcha) deployBlueGreen(data *envData) error {
 	if m.isRunning(caddyName) {
 		if err := m.reloadCaddy(); err != nil {
 			// Fallback: redeploy Caddy
-			m.logger.Warn("Caddy reload failed, redeploying...")
 			if err := m.deployCaddy(data); err != nil {
 				return fmt.Errorf("failed to redeploy Caddy: %w", err)
 			}

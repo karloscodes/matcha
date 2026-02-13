@@ -7,8 +7,6 @@ import (
 
 // checkPorts verifies that required ports are available.
 func (m *Matcha) checkPorts() error {
-	m.logger.Step("Checking ports", "running")
-
 	ports := []int{80, 443}
 	var unavailable []int
 
@@ -19,11 +17,9 @@ func (m *Matcha) checkPorts() error {
 	}
 
 	if len(unavailable) > 0 {
-		m.logger.Step("Checking ports", "failed")
 		return fmt.Errorf("ports %v are not available", unavailable)
 	}
 
-	m.logger.Step("Checking ports", "done")
 	return nil
 }
 

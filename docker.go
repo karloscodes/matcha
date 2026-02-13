@@ -28,20 +28,14 @@ func (m *Matcha) runDocker(args ...string) (string, error) {
 
 // ensureDocker installs Docker if not present.
 func (m *Matcha) ensureDocker() error {
-	m.logger.Step("Docker", "running")
-
 	// Check if already installed
-	if out, err := m.runDocker("version"); err == nil {
-		m.logger.Step("Docker", "done")
-		m.logger.Info("Docker already installed: %s", strings.Split(out, "\n")[0])
+	if _, err := m.runDocker("version"); err == nil {
 		return nil
 	}
 
 	// Install Docker
-	m.logger.Info("Installing Docker...")
 	cmd := exec.Command("bash", "-c", "curl -fsSL https://get.docker.com | sh")
 	if out, err := cmd.CombinedOutput(); err != nil {
-		m.logger.Step("Docker", "failed")
 		return fmt.Errorf("docker install failed: %w\n%s", err, string(out))
 	}
 
@@ -55,7 +49,6 @@ func (m *Matcha) ensureDocker() error {
 		}
 	}
 
-	m.logger.Step("Docker", "done")
 	return nil
 }
 
@@ -75,15 +68,12 @@ func (m *Matcha) pullImages() error {
 	images := []string{m.config.AppImage, m.config.CaddyImage}
 
 	for _, image := range images {
-		m.logger.Info("Pulling %s...", image)
 		for i := 0; i < maxRetries; i++ {
 			if _, err := m.runDocker("pull", image); err == nil {
-				m.logger.Success("Pulled %s", image)
 				break
 			} else if i == maxRetries-1 {
 				return fmt.Errorf("failed to pull %s after %d retries", image, maxRetries)
 			}
-			m.logger.Warn("Pull failed, retrying (%d/%d)", i+1, maxRetries)
 			time.Sleep(time.Duration(i+1) * 2 * time.Second)
 		}
 	}

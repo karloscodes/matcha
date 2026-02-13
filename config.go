@@ -17,8 +17,6 @@ type envData struct {
 
 // collectConfig prompts the user for configuration.
 func (m *Matcha) collectConfig() error {
-	m.logger.Step("Configuration", "running")
-
 	reader := bufio.NewReader(os.Stdin)
 
 	// Prompt for domain
@@ -71,7 +69,6 @@ func (m *Matcha) collectConfig() error {
 		return fmt.Errorf("failed to generate Caddyfile: %w", err)
 	}
 
-	m.logger.Step("Configuration", "done")
 	return nil
 }
 
