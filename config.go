@@ -13,29 +13,85 @@ import (
 type envData struct {
 	Domain     string
 	PrivateKey string
+	// DNS status (not saved to .env, used for display)
+	dnsStatus *dnsStatus
 }
 
-// collectConfig prompts the user for configuration.
+// collectConfig prompts the user for configuration with DNS check and confirmation.
 func (m *Matcha) collectConfig() error {
 	reader := bufio.NewReader(os.Stdin)
 
-	// Prompt for domain
-	fmt.Println()
-	fmt.Print("  Domain (e.g., app.example.com): ")
-	domain, err := reader.ReadString('\n')
-	if err != nil {
-		return fmt.Errorf("failed to read domain: %w", err)
-	}
-	domain = strings.TrimSpace(domain)
+	for {
+		// Prompt for domain
+		fmt.Print("Domain (e.g., analytics.example.com): ")
+		domain, err := reader.ReadString('\n')
+		if err != nil {
+			return fmt.Errorf("failed to read domain: %w", err)
+		}
+		domain = strings.TrimSpace(domain)
 
-	if domain == "" {
-		return fmt.Errorf("domain is required")
-	}
+		if domain == "" {
+			return fmt.Errorf("domain is required")
+		}
 
-	if err := m.validateDomain(domain); err != nil {
-		return err
-	}
+		if err := m.validateDomain(domain); err != nil {
+			fmt.Printf("Error: %v\n\n", err)
+			continue
+		}
 
+		// Check DNS
+		fmt.Println()
+		fmt.Print(bold("Checking DNS... "))
+		dns := m.checkDNS(domain)
+
+		if !dns.Found {
+			fmt.Println("not found")
+			m.printDNSInstructions(domain, dns.ServerIP)
+		} else if !dns.MatchIP {
+			fmt.Printf("%s (wrong server)\n", dns.DomainIP)
+			fmt.Println()
+			fmt.Printf("%s %s -> %s\n", dim("Update A record:"), domain, dns.ServerIP)
+			fmt.Println(dim("SSL activates automatically once DNS propagates."))
+			fmt.Println()
+		} else {
+			fmt.Printf("%s (this server)\n", green("✓ "+dns.DomainIP))
+			fmt.Println()
+		}
+
+		// Show summary
+		fmt.Println(bold("Summary"))
+		fmt.Println()
+		fmt.Printf("  Domain:  %s\n", domain)
+		if !dns.Found || !dns.MatchIP {
+			fmt.Printf("  DNS:     %s\n", dim("Not ready (will continue anyway)"))
+		} else {
+			fmt.Printf("  DNS:     %s\n", green("✓ Ready"))
+		}
+		fmt.Println()
+
+		// Confirm
+		fmt.Printf("%s [Y/n] ", bold("Proceed?"))
+		confirm, err := reader.ReadString('\n')
+		if err != nil {
+			return fmt.Errorf("failed to read confirmation: %w", err)
+		}
+
+		confirm = strings.TrimSpace(strings.ToLower(confirm))
+		if confirm == "" || confirm == "y" || confirm == "yes" {
+			// Store DNS status for later
+			m.dnsStatus = dns
+			m.domain = domain
+			return nil
+		}
+
+		fmt.Println()
+		fmt.Println("Cancelled. Starting over.")
+		fmt.Println()
+	}
+}
+
+// setupConfig creates directories and saves configuration after user confirms.
+func (m *Matcha) setupConfig() error {
 	// Generate private key
 	privateKey, err := generatePrivateKey()
 	if err != nil {
@@ -56,7 +112,7 @@ func (m *Matcha) collectConfig() error {
 
 	// Save config
 	data := &envData{
-		Domain:     domain,
+		Domain:     m.domain,
 		PrivateKey: privateKey,
 	}
 

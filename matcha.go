@@ -24,11 +24,20 @@ type Config struct {
 	BlueGreen   bool // dual containers, zero-downtime switch
 	CronUpdates bool // daily 3 AM auto-update cron job
 	Backups     bool // SQLite backup with retention policy
+
+	// Self-update configuration (see selfupdate.go for conventions)
+	// When configured, Update() checks GitHub releases for newer versions
+	// and downloads the new binary automatically.
+	ManagerRepo    string // GitHub repo for releases, e.g., "karloscodes/fusionaly"
+	ManagerVersion string // current version, e.g., "v1.4.37" (set via ldflags at build time)
 }
 
 // Matcha is the main orchestrator for deployments.
 type Matcha struct {
 	config Config
+	// Temporary state during installation
+	domain    string
+	dnsStatus *dnsStatus
 }
 
 // New creates a new Matcha instance with the given configuration.
@@ -87,8 +96,19 @@ func (m *Matcha) Install() error {
 		return fmt.Errorf("installation requires root privileges")
 	}
 
-	// Check ports
-	sp := m.StartSpinner("Checking ports")
+	// Collect config from user FIRST (before installing anything)
+	// This includes domain prompt, DNS check, and confirmation
+	if err := m.collectConfig(); err != nil {
+		return fmt.Errorf("configuration failed: %w", err)
+	}
+
+	// Now start the installation with spinners
+	fmt.Println()
+	fmt.Println(bold("Installing"))
+	fmt.Println()
+
+	// Check system requirements (ports)
+	sp := m.StartSpinner("Checking system")
 	if err := m.checkPorts(); err != nil {
 		sp.Stop(false)
 		return err
@@ -111,10 +131,13 @@ func (m *Matcha) Install() error {
 	}
 	sp.Stop(true)
 
-	// Collect config from user
-	if err := m.collectConfig(); err != nil {
+	// Configure (create dirs, save .env, generate Caddyfile)
+	sp = m.StartSpinner("Configuring")
+	if err := m.setupConfig(); err != nil {
+		sp.Stop(false)
 		return fmt.Errorf("configuration failed: %w", err)
 	}
+	sp.Stop(true)
 
 	// Deploy
 	sp = m.StartSpinner("Deploying")
@@ -124,35 +147,54 @@ func (m *Matcha) Install() error {
 	}
 	sp.Stop(true)
 
-	// Setup cron if enabled
+	// Maintenance (cron + binary install)
+	sp = m.StartSpinner("Maintenance")
+	var maintenanceErr error
 	if m.config.CronUpdates {
-		sp = m.StartSpinner("Cron")
 		if err := m.setupCron(); err != nil {
-			sp.Stop(false)
-			printWarn("cron setup failed: %v", err)
-		} else {
-			sp.Stop(true)
+			maintenanceErr = err
 		}
 	}
-
-	// Install binary
-	if err := m.installBinary(); err != nil {
-		printWarn("binary install failed: %v", err)
+	if err := m.installBinary(); err != nil && maintenanceErr == nil {
+		maintenanceErr = err
 	}
-
-	// Read domain for completion message
-	if data, err := m.readEnv(); err == nil {
-		m.printComplete(data.Domain, false, "")
+	if maintenanceErr != nil {
+		sp.Stop(false)
+		printWarn("maintenance setup: %v", maintenanceErr)
 	} else {
-		printSuccess("Installation complete")
+		sp.Stop(true)
 	}
+
+	// Show completion message with DNS warning if needed
+	dnsWarning := m.dnsStatus != nil && (!m.dnsStatus.Found || !m.dnsStatus.MatchIP)
+	serverIP := ""
+	if m.dnsStatus != nil {
+		serverIP = m.dnsStatus.ServerIP
+	}
+	m.printComplete(m.domain, dnsWarning, serverIP)
 
 	return nil
 }
 
 // Update pulls the latest image and performs a deployment.
+// Also checks for manager self-updates if configured.
 func (m *Matcha) Update() error {
 	printHeader("Updating " + m.config.Name)
+
+	// Self-update manager binary if configured
+	if m.config.ManagerRepo != "" {
+		sp := m.StartSpinner("Checking for updates")
+		updated, err := m.SelfUpdate()
+		if err != nil {
+			sp.Stop(false)
+			printWarn("self-update check failed: %v", err)
+		} else if updated {
+			sp.Stop(true)
+			// Binary was replaced, but we continue with current process
+		} else {
+			sp.Stop(true)
+		}
+	}
 
 	if err := m.loadConfig(); err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
@@ -171,10 +213,6 @@ func (m *Matcha) Update() error {
 		return fmt.Errorf("deployment failed: %w", err)
 	}
 	sp.Stop(true)
-
-	if err := m.upgradeBinary(); err != nil {
-		printWarn("binary upgrade failed: %v", err)
-	}
 
 	if err := m.pruneImages(); err != nil {
 		printWarn("image prune failed: %v", err)
