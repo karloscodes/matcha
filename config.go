@@ -11,8 +11,15 @@ import (
 
 // envData holds the environment configuration.
 type envData struct {
-	Domain     string
-	PrivateKey string
+	Domain       string
+	PrivateKey   string
+	AppImage     string
+	CaddyImage   string
+	InstallDir   string
+	BackupPath   string
+	Version      string
+	InstallerURL string
+	User         string // Admin user email (optional)
 	// DNS status (not saved to .env, used for display)
 	dnsStatus *dnsStatus
 }
@@ -121,8 +128,14 @@ func (m *Matcha) setupConfig() error {
 
 	// Save config
 	data := &envData{
-		Domain:     m.domain,
-		PrivateKey: privateKey,
+		Domain:       m.domain,
+		PrivateKey:   privateKey,
+		AppImage:     m.config.AppImage,
+		CaddyImage:   m.config.CaddyImage,
+		InstallDir:   m.config.InstallDir,
+		BackupPath:   m.config.InstallDir + "/storage/backups",
+		Version:      "latest",
+		InstallerURL: "https://github.com/" + m.config.ManagerRepo + "/releases/latest",
 	}
 
 	if err := m.saveEnv(data); err != nil {
@@ -139,18 +152,20 @@ func (m *Matcha) setupConfig() error {
 
 // loadConfig loads existing configuration from .env.
 func (m *Matcha) loadConfig() error {
-	envPath := m.config.InstallDir + "/.env"
-
-	data, err := os.ReadFile(envPath)
+	data, err := m.readEnv()
 	if err != nil {
 		return fmt.Errorf("failed to read .env: %w", err)
 	}
 
-	// We just need to verify it exists and is readable
-	// The actual values are loaded when needed
-	if len(data) == 0 {
-		return fmt.Errorf(".env is empty")
+	// Override config with values from .env
+	if data.AppImage != "" {
+		m.config.AppImage = data.AppImage
 	}
+	if data.CaddyImage != "" {
+		m.config.CaddyImage = data.CaddyImage
+	}
+	// Store domain for GetDomain()
+	m.domain = data.Domain
 
 	return nil
 }
@@ -188,45 +203,43 @@ func (m *Matcha) readEnv() (*envData, error) {
 			data.Domain = value
 		case prefix + "_PRIVATE_KEY":
 			data.PrivateKey = value
+		case prefix + "_APP_IMAGE", "APP_IMAGE":
+			data.AppImage = value
+		case "CADDY_IMAGE":
+			data.CaddyImage = value
+		case "INSTALL_DIR":
+			data.InstallDir = value
+		case "BACKUP_PATH":
+			data.BackupPath = value
+		case "VERSION":
+			data.Version = value
+		case "INSTALLER_URL":
+			data.InstallerURL = value
+		case prefix + "_USER":
+			data.User = value
 		}
 	}
 
 	return data, scanner.Err()
 }
 
-// saveEnv writes the .env file, preserving unknown lines.
+// saveEnv writes the .env file in the same format as the original installer.
 func (m *Matcha) saveEnv(data *envData) error {
 	envPath := m.config.InstallDir + "/.env"
 	prefix := m.EnvPrefix()
 
+	// For fresh install, write all fields in order
 	var lines []string
-	foundDomain, foundKey := false, false
-
-	// Read existing file if it exists
-	if existing, err := os.ReadFile(envPath); err == nil {
-		for _, line := range strings.Split(string(existing), "\n") {
-			trimmed := strings.TrimSpace(line)
-
-			if strings.HasPrefix(trimmed, prefix+"_DOMAIN=") {
-				lines = append(lines, fmt.Sprintf("%s_DOMAIN=%s", prefix, data.Domain))
-				foundDomain = true
-			} else if strings.HasPrefix(trimmed, prefix+"_PRIVATE_KEY=") {
-				// Preserve existing private key
-				lines = append(lines, line)
-				foundKey = true
-			} else if trimmed != "" {
-				// Preserve all other lines
-				lines = append(lines, line)
-			}
-		}
-	}
-
-	// Add missing lines
-	if !foundDomain {
-		lines = append(lines, fmt.Sprintf("%s_DOMAIN=%s", prefix, data.Domain))
-	}
-	if !foundKey {
-		lines = append(lines, fmt.Sprintf("%s_PRIVATE_KEY=%s", prefix, data.PrivateKey))
+	lines = append(lines, fmt.Sprintf("%s_DOMAIN=%s", prefix, data.Domain))
+	lines = append(lines, fmt.Sprintf("APP_IMAGE=%s", data.AppImage))
+	lines = append(lines, fmt.Sprintf("CADDY_IMAGE=%s", data.CaddyImage))
+	lines = append(lines, fmt.Sprintf("INSTALL_DIR=%s", data.InstallDir))
+	lines = append(lines, fmt.Sprintf("BACKUP_PATH=%s", data.BackupPath))
+	lines = append(lines, fmt.Sprintf("VERSION=%s", data.Version))
+	lines = append(lines, fmt.Sprintf("INSTALLER_URL=%s", data.InstallerURL))
+	lines = append(lines, fmt.Sprintf("%s_PRIVATE_KEY=%s", prefix, data.PrivateKey))
+	if data.User != "" {
+		lines = append(lines, fmt.Sprintf("%s_USER=%s", prefix, data.User))
 	}
 
 	content := strings.Join(lines, "\n") + "\n"

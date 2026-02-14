@@ -289,6 +289,16 @@ func (m *Matcha) SetImage(image string) {
 	m.config.AppImage = image
 }
 
+// SaveImage persists the current app image to the .env file.
+func (m *Matcha) SaveImage() error {
+	data, err := m.readEnv()
+	if err != nil {
+		return err
+	}
+	data.AppImage = m.config.AppImage
+	return m.saveEnv(data)
+}
+
 // GetDomain reads the domain from the .env file.
 func (m *Matcha) GetDomain() (string, error) {
 	data, err := m.readEnv()
