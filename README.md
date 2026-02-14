@@ -21,12 +21,17 @@ package main
 
 import "github.com/karloscodes/matcha"
 
+var version = "dev" // set via ldflags
+
 func main() {
     m := matcha.New(matcha.Config{
-        Name:     "myapp",
-        AppImage: "ghcr.io/user/myapp:latest",
-        BlueGreen: true,
-        Backups:   true,
+        Name:           "myapp",
+        AppImage:       "ghcr.io/user/myapp:latest",
+        BlueGreen:      true,
+        CronUpdates:    true,
+        Backups:        true,
+        ManagerRepo:    "user/myapp",       // GitHub repo for self-updates
+        ManagerVersion: version,
     })
 
     // m.Install(), m.Update(), m.Status(), etc.
