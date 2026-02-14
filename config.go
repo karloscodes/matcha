@@ -15,7 +15,6 @@ type envData struct {
 	PrivateKey string
 	AppImage   string
 	CaddyImage string
-	User       string // Admin user email (optional)
 	// DNS status (not saved to .env, used for display)
 	dnsStatus *dnsStatus
 }
@@ -199,8 +198,6 @@ func (m *Matcha) readEnv() (*envData, error) {
 			data.AppImage = value
 		case "CADDY_IMAGE":
 			data.CaddyImage = value
-		case prefix + "_USER":
-			data.User = value
 		}
 	}
 
@@ -213,7 +210,6 @@ func (m *Matcha) readEnv() (*envData, error) {
 // - APP_IMAGE: current app image (changes on upgrade OSS->Pro)
 // - CADDY_IMAGE: current caddy image
 // - PRIVATE_KEY: app secret key
-// - USER: admin email (optional)
 func (m *Matcha) saveEnv(data *envData) error {
 	envPath := m.config.InstallDir + "/.env"
 	prefix := m.EnvPrefix()
@@ -223,9 +219,6 @@ func (m *Matcha) saveEnv(data *envData) error {
 	lines = append(lines, fmt.Sprintf("APP_IMAGE=%s", data.AppImage))
 	lines = append(lines, fmt.Sprintf("CADDY_IMAGE=%s", data.CaddyImage))
 	lines = append(lines, fmt.Sprintf("%s_PRIVATE_KEY=%s", prefix, data.PrivateKey))
-	if data.User != "" {
-		lines = append(lines, fmt.Sprintf("%s_USER=%s", prefix, data.User))
-	}
 
 	content := strings.Join(lines, "\n") + "\n"
 	return os.WriteFile(envPath, []byte(content), 0600)
