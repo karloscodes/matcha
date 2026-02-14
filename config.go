@@ -11,15 +11,11 @@ import (
 
 // envData holds the environment configuration.
 type envData struct {
-	Domain       string
-	PrivateKey   string
-	AppImage     string
-	CaddyImage   string
-	InstallDir   string
-	BackupPath   string
-	Version      string
-	InstallerURL string
-	User         string // Admin user email (optional)
+	Domain     string
+	PrivateKey string
+	AppImage   string
+	CaddyImage string
+	User       string // Admin user email (optional)
 	// DNS status (not saved to .env, used for display)
 	dnsStatus *dnsStatus
 }
@@ -128,14 +124,10 @@ func (m *Matcha) setupConfig() error {
 
 	// Save config
 	data := &envData{
-		Domain:       m.domain,
-		PrivateKey:   privateKey,
-		AppImage:     m.config.AppImage,
-		CaddyImage:   m.config.CaddyImage,
-		InstallDir:   m.config.InstallDir,
-		BackupPath:   m.config.InstallDir + "/storage/backups",
-		Version:      "latest",
-		InstallerURL: "https://github.com/" + m.config.ManagerRepo + "/releases/latest",
+		Domain:     m.domain,
+		PrivateKey: privateKey,
+		AppImage:   m.config.AppImage,
+		CaddyImage: m.config.CaddyImage,
 	}
 
 	if err := m.saveEnv(data); err != nil {
@@ -207,14 +199,6 @@ func (m *Matcha) readEnv() (*envData, error) {
 			data.AppImage = value
 		case "CADDY_IMAGE":
 			data.CaddyImage = value
-		case "INSTALL_DIR":
-			data.InstallDir = value
-		case "BACKUP_PATH":
-			data.BackupPath = value
-		case "VERSION":
-			data.Version = value
-		case "INSTALLER_URL":
-			data.InstallerURL = value
 		case prefix + "_USER":
 			data.User = value
 		}
@@ -223,20 +207,21 @@ func (m *Matcha) readEnv() (*envData, error) {
 	return data, scanner.Err()
 }
 
-// saveEnv writes the .env file in the same format as the original installer.
+// saveEnv writes the .env file with only essential fields.
+// These are values that need to persist and can change:
+// - DOMAIN: user's configured domain
+// - APP_IMAGE: current app image (changes on upgrade OSS->Pro)
+// - CADDY_IMAGE: current caddy image
+// - PRIVATE_KEY: app secret key
+// - USER: admin email (optional)
 func (m *Matcha) saveEnv(data *envData) error {
 	envPath := m.config.InstallDir + "/.env"
 	prefix := m.EnvPrefix()
 
-	// For fresh install, write all fields in order
 	var lines []string
 	lines = append(lines, fmt.Sprintf("%s_DOMAIN=%s", prefix, data.Domain))
 	lines = append(lines, fmt.Sprintf("APP_IMAGE=%s", data.AppImage))
 	lines = append(lines, fmt.Sprintf("CADDY_IMAGE=%s", data.CaddyImage))
-	lines = append(lines, fmt.Sprintf("INSTALL_DIR=%s", data.InstallDir))
-	lines = append(lines, fmt.Sprintf("BACKUP_PATH=%s", data.BackupPath))
-	lines = append(lines, fmt.Sprintf("VERSION=%s", data.Version))
-	lines = append(lines, fmt.Sprintf("INSTALLER_URL=%s", data.InstallerURL))
 	lines = append(lines, fmt.Sprintf("%s_PRIVATE_KEY=%s", prefix, data.PrivateKey))
 	if data.User != "" {
 		lines = append(lines, fmt.Sprintf("%s_USER=%s", prefix, data.User))

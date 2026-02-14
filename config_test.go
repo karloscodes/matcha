@@ -2,7 +2,6 @@ package matcha
 
 import (
 	"os"
-	"strings"
 	"testing"
 )
 
@@ -69,12 +68,15 @@ func TestSaveAndReadEnv(t *testing.T) {
 	m := New(Config{
 		Name:       "testapp",
 		AppImage:   "test:latest",
+		CaddyImage: "caddy:2.9-alpine",
 		InstallDir: tmpDir,
 	})
 
 	data := &envData{
 		Domain:     "test.example.com",
 		PrivateKey: "abc123def456",
+		AppImage:   "test:latest",
+		CaddyImage: "caddy:2.9-alpine",
 	}
 
 	err := m.saveEnv(data)
@@ -90,56 +92,129 @@ func TestSaveAndReadEnv(t *testing.T) {
 	if got.Domain != data.Domain {
 		t.Errorf("Domain = %q, want %q", got.Domain, data.Domain)
 	}
-
 	if got.PrivateKey != data.PrivateKey {
 		t.Errorf("PrivateKey = %q, want %q", got.PrivateKey, data.PrivateKey)
 	}
+	if got.AppImage != data.AppImage {
+		t.Errorf("AppImage = %q, want %q", got.AppImage, data.AppImage)
+	}
+	if got.CaddyImage != data.CaddyImage {
+		t.Errorf("CaddyImage = %q, want %q", got.CaddyImage, data.CaddyImage)
+	}
 }
 
-func TestSaveEnvPreservesUnknownLines(t *testing.T) {
+func TestLoadConfigOverridesFromEnv(t *testing.T) {
 	tmpDir := t.TempDir()
+
+	// Create matcha with default images
 	m := New(Config{
 		Name:       "testapp",
-		AppImage:   "test:latest",
+		AppImage:   "oss:latest",
+		CaddyImage: "caddy:2.7-alpine",
 		InstallDir: tmpDir,
 	})
 
-	// Write initial .env with custom line
+	// Write .env with different images (simulating upgrade scenario)
 	envPath := tmpDir + "/.env"
-	initial := "TESTAPP_DOMAIN=old.example.com\nTESTAPP_PRIVATE_KEY=oldkey123\nCUSTOM_VAR=preserved\n"
-	if err := os.WriteFile(envPath, []byte(initial), 0600); err != nil {
+	envContent := "TESTAPP_DOMAIN=upgraded.example.com\nAPP_IMAGE=pro:latest\nCADDY_IMAGE=caddy:2.9-alpine\nTESTAPP_PRIVATE_KEY=key123\n"
+	if err := os.WriteFile(envPath, []byte(envContent), 0600); err != nil {
 		t.Fatal(err)
 	}
 
-	// Save new data
-	data := &envData{
-		Domain:     "new.example.com",
-		PrivateKey: "newkey456",
+	// loadConfig should override config values from .env
+	err := m.loadConfig()
+	if err != nil {
+		t.Fatalf("loadConfig() error = %v", err)
 	}
-	if err := m.saveEnv(data); err != nil {
-		t.Fatalf("saveEnv() error = %v", err)
+
+	if m.config.AppImage != "pro:latest" {
+		t.Errorf("AppImage = %q, want 'pro:latest'", m.config.AppImage)
+	}
+	if m.config.CaddyImage != "caddy:2.9-alpine" {
+		t.Errorf("CaddyImage = %q, want 'caddy:2.9-alpine'", m.config.CaddyImage)
+	}
+	if m.domain != "upgraded.example.com" {
+		t.Errorf("domain = %q, want 'upgraded.example.com'", m.domain)
+	}
+}
+
+func TestSaveImagePersistsChange(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	m := New(Config{
+		Name:       "testapp",
+		AppImage:   "oss:latest",
+		CaddyImage: "caddy:2.9-alpine",
+		InstallDir: tmpDir,
+	})
+
+	// Create initial .env
+	envPath := tmpDir + "/.env"
+	envContent := "TESTAPP_DOMAIN=test.example.com\nAPP_IMAGE=oss:latest\nCADDY_IMAGE=caddy:2.9-alpine\nTESTAPP_PRIVATE_KEY=key456\n"
+	if err := os.WriteFile(envPath, []byte(envContent), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	// Change image and save
+	m.SetImage("pro:latest")
+	if err := m.SaveImage(); err != nil {
+		t.Fatalf("SaveImage() error = %v", err)
 	}
 
 	// Read back and verify
-	content, err := os.ReadFile(envPath)
+	data, err := m.readEnv()
 	if err != nil {
+		t.Fatalf("readEnv() error = %v", err)
+	}
+
+	if data.AppImage != "pro:latest" {
+		t.Errorf("AppImage after SaveImage = %q, want 'pro:latest'", data.AppImage)
+	}
+	// Other fields should be preserved
+	if data.Domain != "test.example.com" {
+		t.Errorf("Domain should be preserved, got %q", data.Domain)
+	}
+	if data.PrivateKey != "key456" {
+		t.Errorf("PrivateKey should be preserved, got %q", data.PrivateKey)
+	}
+}
+
+func TestReadEnvWithLegacyFields(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	m := New(Config{
+		Name:       "testapp",
+		InstallDir: tmpDir,
+	})
+
+	// Write .env with legacy fields from old installer
+	envPath := tmpDir + "/.env"
+	envContent := `TESTAPP_DOMAIN=legacy.example.com
+APP_IMAGE=legacyapp:v1
+CADDY_IMAGE=caddy:2.7-alpine
+INSTALL_DIR=/opt/testapp
+BACKUP_PATH=/opt/testapp/storage/backups
+VERSION=latest
+INSTALLER_URL=https://github.com/example/releases/latest
+TESTAPP_PRIVATE_KEY=legacykey
+`
+	if err := os.WriteFile(envPath, []byte(envContent), 0600); err != nil {
 		t.Fatal(err)
 	}
 
-	contentStr := string(content)
-
-	// Domain should be updated
-	if !strings.Contains(contentStr, "TESTAPP_DOMAIN=new.example.com") {
-		t.Error("Domain was not updated")
+	// Should read essential fields and ignore legacy ones
+	data, err := m.readEnv()
+	if err != nil {
+		t.Fatalf("readEnv() error = %v", err)
 	}
 
-	// Private key should be preserved (not overwritten)
-	if !strings.Contains(contentStr, "TESTAPP_PRIVATE_KEY=oldkey123") {
-		t.Error("Private key was overwritten instead of preserved")
+	if data.Domain != "legacy.example.com" {
+		t.Errorf("Domain = %q, want 'legacy.example.com'", data.Domain)
 	}
-
-	// Custom var should be preserved
-	if !strings.Contains(contentStr, "CUSTOM_VAR=preserved") {
-		t.Error("Custom variable was not preserved")
+	if data.AppImage != "legacyapp:v1" {
+		t.Errorf("AppImage = %q, want 'legacyapp:v1'", data.AppImage)
+	}
+	if data.CaddyImage != "caddy:2.7-alpine" {
+		t.Errorf("CaddyImage = %q, want 'caddy:2.7-alpine'", data.CaddyImage)
 	}
 }
