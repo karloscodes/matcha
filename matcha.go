@@ -3,7 +3,6 @@ package matcha
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 )
 
@@ -313,24 +312,7 @@ func (m *Matcha) Exec(args ...string) error {
 
 // BackupDB creates a backup of the database and returns the backup path.
 func (m *Matcha) BackupDB() (string, error) {
-	backupDir := m.config.InstallDir + "/storage/backups"
-	dbPath := m.config.InstallDir + "/storage/" + m.config.Name + "-production.db"
-
-	// Ensure backup directory exists
-	if err := os.MkdirAll(backupDir, 0755); err != nil {
-		return "", fmt.Errorf("failed to create backup dir: %w", err)
-	}
-
-	// Generate backup filename with timestamp
-	backupPath := fmt.Sprintf("%s/backup_upgrade_%d.db", backupDir, os.Getpid())
-
-	// Use sqlite3 .backup command (database is on host filesystem)
-	cmd := exec.Command("sqlite3", dbPath, fmt.Sprintf(".backup '%s'", backupPath))
-	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("backup failed: %w", err)
-	}
-
-	return backupPath, nil
+	return m.createBackup()
 }
 
 // Deploy triggers a deployment with current configuration.
