@@ -43,6 +43,8 @@ func main() {
 		cmdBackup()
 	case "restore":
 		cmdRestore()
+	case "migrate":
+		cmdMigrate()
 	case "version":
 		fmt.Println("matcha " + version)
 	default:
@@ -67,6 +69,7 @@ Commands:
   logs <name>        Stream app logs
   backup <name>      Back up the app database
   restore <name>     Restore the app database
+  migrate <name>     Migrate from old per-app layout to shared layout
   version            Print version`)
 }
 
@@ -324,4 +327,16 @@ func cmdRestore() {
 	if err := m.RestoreDB(); err != nil {
 		fatal(err)
 	}
+}
+
+func cmdMigrate() {
+	name := requireAppName("migrate")
+	m := matcha.New(matcha.Config{
+		Name:     name,
+		AppImage: "unknown", // will be read from old .env
+	})
+	if err := m.Migrate(); err != nil {
+		fatal(err)
+	}
+	fmt.Printf("Migration complete. Deploy with: matcha deploy %s\n", name)
 }
