@@ -136,15 +136,18 @@ func (m *Matcha) createBackup() (string, error) {
 }
 
 // findDatabase returns the path to the first .db file in the data dir.
+// Checks root level first, then known subdirectories (storage/).
 func (m *Matcha) findDatabase() string {
 	dataDir := m.DataDir()
-	entries, err := os.ReadDir(dataDir)
-	if err != nil {
-		return ""
-	}
-	for _, entry := range entries {
-		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".db") {
-			return filepath.Join(dataDir, entry.Name())
+	for _, dir := range []string{dataDir, filepath.Join(dataDir, "storage")} {
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			continue
+		}
+		for _, entry := range entries {
+			if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".db") {
+				return filepath.Join(dir, entry.Name())
+			}
 		}
 	}
 	return ""

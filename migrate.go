@@ -181,9 +181,16 @@ func (m *Matcha) buildMigrationEnv(vars map[string]string) map[string]string {
 	return env
 }
 
-// migrateDataDirs moves storage and logs from old dir to /var/matcha/{name}/.
+// migrateDataDirs moves storage, logs, and backups from old dir to /var/matcha/{name}/.
 func (m *Matcha) migrateDataDirs(oldDir string) error {
 	dataDir := m.DataDir()
+
+	// Ensure target directories exist
+	for _, dir := range []string{dataDir, filepath.Join(dataDir, "backups")} {
+		os.MkdirAll(dir, 0755)
+	}
+
+	// Move known subdirectories
 	for _, sub := range []string{"storage", "logs"} {
 		oldPath := filepath.Join(oldDir, sub)
 		if _, err := os.Stat(oldPath); err != nil {
@@ -197,6 +204,20 @@ func (m *Matcha) migrateDataDirs(oldDir string) error {
 			}
 		}
 	}
+
+	// Move backups from old location (storage/backups/) to new (backups/)
+	oldBackups := filepath.Join(dataDir, "storage", "backups")
+	if info, err := os.Stat(oldBackups); err == nil && info.IsDir() {
+		newBackups := filepath.Join(dataDir, "backups")
+		entries, _ := os.ReadDir(oldBackups)
+		for _, entry := range entries {
+			src := filepath.Join(oldBackups, entry.Name())
+			dst := filepath.Join(newBackups, entry.Name())
+			os.Rename(src, dst) // best-effort
+		}
+		os.Remove(oldBackups) // remove empty dir
+	}
+
 	return nil
 }
 
