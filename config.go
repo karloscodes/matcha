@@ -103,25 +103,27 @@ func (m *Matcha) collectConfig() error {
 
 // setupConfig creates directories and saves configuration after user confirms.
 func (m *Matcha) setupConfig() error {
-	// Generate private key
 	privateKey, err := generatePrivateKey()
 	if err != nil {
 		return fmt.Errorf("failed to generate private key: %w", err)
 	}
 
-	// Create install directory
-	if err := os.MkdirAll(m.config.InstallDir, 0755); err != nil {
-		return fmt.Errorf("failed to create install dir: failed to create directory: %w", err)
+	// Register app in registry
+	reg := &Registry{BaseDir: "/etc/matcha"}
+	entry := AppEntry{
+		Name:       m.config.Name,
+		Image:      m.config.AppImage,
+		Domain:     m.domain,
+		Port:       m.config.AppPort,
+		HealthPath: m.config.HealthPath,
+		Backups:    m.config.Backups,
+		Volumes:    m.config.Volumes,
+	}
+	if err := reg.Save(entry); err != nil {
+		return fmt.Errorf("failed to register app: %w", err)
 	}
 
-	// Create subdirectories
-	for _, dir := range []string{"storage", "logs", "storage/backups"} {
-		if err := os.MkdirAll(m.config.InstallDir+"/"+dir, 0755); err != nil {
-			return fmt.Errorf("failed to create %s: %w", dir, err)
-		}
-	}
-
-	// Save config
+	// Save .env with secrets
 	data := &envData{
 		Domain:     m.domain,
 		PrivateKey: privateKey,

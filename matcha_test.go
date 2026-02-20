@@ -11,8 +11,8 @@ func TestNew(t *testing.T) {
 			AppImage: "test/image:latest",
 		})
 
-		if m.config.InstallDir != "/opt/testapp" {
-			t.Errorf("InstallDir = %q, want /opt/testapp", m.config.InstallDir)
+		if m.config.InstallDir != "/etc/matcha/apps/testapp" {
+			t.Errorf("InstallDir = %q, want /etc/matcha/apps/testapp", m.config.InstallDir)
 		}
 
 		if m.config.BinaryPath != "/usr/local/bin/testapp" {
@@ -70,8 +70,8 @@ func TestNetworkName(t *testing.T) {
 
 	got := m.NetworkName()
 
-	if got != "fusionaly-network" {
-		t.Errorf("NetworkName() = %q, want fusionaly-network", got)
+	if got != "matcha-network" {
+		t.Errorf("NetworkName() = %q, want matcha-network", got)
 	}
 }
 
@@ -80,8 +80,8 @@ func TestProxyContainerName(t *testing.T) {
 
 	got := m.ProxyContainerName()
 
-	if got != "fusionaly-proxy" {
-		t.Errorf("ProxyContainerName() = %q, want fusionaly-proxy", got)
+	if got != "matcha-proxy" {
+		t.Errorf("ProxyContainerName() = %q, want matcha-proxy", got)
 	}
 }
 
@@ -90,8 +90,8 @@ func TestAppContainerName(t *testing.T) {
 
 	got := m.AppContainerName()
 
-	if got != "fusionaly-app" {
-		t.Errorf("AppContainerName() = %q, want fusionaly-app", got)
+	if got != "fusionaly" {
+		t.Errorf("AppContainerName() = %q, want fusionaly", got)
 	}
 }
 

@@ -12,8 +12,8 @@ func TestProxyDeployArgs(t *testing.T) {
 	args := m.proxyDeployArgs("app.example.com")
 
 	expected := []string{
-		"exec", "testapp-proxy", "kamal-proxy", "deploy", "testapp",
-		"--target", "testapp-app:8080",
+		"exec", "matcha-proxy", "kamal-proxy", "deploy", "testapp",
+		"--target", "testapp:8080",
 		"--host", "app.example.com",
 		"--tls",
 		"--health-check-path", "/up",
@@ -50,11 +50,11 @@ func TestProxyDeployArgsLocalhost(t *testing.T) {
 
 	found := false
 	for i, arg := range args {
-		if arg == "--target" && i+1 < len(args) && args[i+1] == "testapp-app:3000" {
+		if arg == "--target" && i+1 < len(args) && args[i+1] == "testapp:3000" {
 			found = true
 		}
 	}
 	if !found {
-		t.Errorf("missing --target testapp-app:3000 in %v", args)
+		t.Errorf("missing --target testapp:3000 in %v", args)
 	}
 }

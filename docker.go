@@ -3,6 +3,7 @@ package matcha
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -103,14 +104,37 @@ func (m *Matcha) deployApp(name string, data *envData) error {
 		"--network", m.NetworkName(),
 		"-v", m.config.InstallDir + "/storage:/app/storage",
 		"-v", m.config.InstallDir + "/logs:/app/logs",
+	}
+
+	// Custom volumes
+	for _, v := range m.config.Volumes {
+		args = append(args, "-v", v)
+	}
+
+	// Auto-generated env vars
+	args = append(args,
 		"-e", fmt.Sprintf("%s_DOMAIN=%s", prefix, data.Domain),
 		"-e", fmt.Sprintf("%s_PRIVATE_KEY=%s", prefix, data.PrivateKey),
 		"-e", fmt.Sprintf("%s_APP_PORT=%d", prefix, m.config.AppPort),
 		"-e", fmt.Sprintf("%s_ENV=production", prefix),
+	)
+
+	// User env vars from .env file
+	envPath := m.config.InstallDir + "/.env"
+	userVars, _ := readEnvFile(envPath)
+	for k, v := range userVars {
+		// Skip matcha-managed keys
+		if strings.HasPrefix(k, prefix+"_") || k == "APP_IMAGE" || k == "PROXY_IMAGE" {
+			continue
+		}
+		args = append(args, "-e", k+"="+v)
+	}
+
+	args = append(args,
 		"--memory=512m",
 		"--restart", "unless-stopped",
-		m.config.AppImage,
-	}
+		data.AppImage,
+	)
 
 	_, err := m.runDocker(args...)
 	return err
@@ -121,6 +145,9 @@ func (m *Matcha) deployProxy() error {
 	name := m.ProxyContainerName()
 	m.stopAndRemove(name)
 
+	proxyDataDir := "/etc/matcha/proxy-data"
+	os.MkdirAll(proxyDataDir, 0755)
+
 	args := []string{
 		"run", "-d",
 		"--name", name,
@@ -128,7 +155,7 @@ func (m *Matcha) deployProxy() error {
 		"-p", "80:80",
 		"-p", "443:443",
 		"-p", "443:443/udp",
-		"-v", m.config.InstallDir + "/kamal-proxy-data:/home/kamal-proxy/.config/kamal-proxy",
+		"-v", proxyDataDir + ":/home/kamal-proxy/.config/kamal-proxy",
 		"--memory=128m",
 		"--restart", "unless-stopped",
 		m.config.ProxyImage,
@@ -136,6 +163,11 @@ func (m *Matcha) deployProxy() error {
 
 	_, err := m.runDocker(args...)
 	return err
+}
+
+// StopApp stops and removes the app container.
+func (m *Matcha) StopApp() error {
+	return m.stopAndRemove(m.AppContainerName())
 }
 
 // pruneImages removes unused images.

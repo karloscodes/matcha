@@ -32,8 +32,8 @@ func (m *Matcha) deployToProxy(domain string) error {
 	return nil
 }
 
-// removeFromProxy removes the service from kamal-proxy.
-func (m *Matcha) removeFromProxy() error {
+// RemoveFromProxy removes the service from kamal-proxy.
+func (m *Matcha) RemoveFromProxy() error {
 	proxyContainer := m.ProxyContainerName()
 	_, err := m.runDocker("exec", proxyContainer, "kamal-proxy", "remove", m.config.Name)
 	return err

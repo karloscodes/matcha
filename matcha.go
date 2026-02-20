@@ -14,7 +14,7 @@ type Config struct {
 	AppImage string // "karloscodes/fusionaly:latest"
 
 	// Optional with defaults
-	InstallDir string // default: /opt/{Name}
+	InstallDir string // default: /etc/matcha/apps/{Name}
 	BinaryPath string // default: /usr/local/bin/{Name}
 	ProxyImage string // default: basecamp/kamal-proxy:latest
 	HealthPath string // default: /up
@@ -23,6 +23,9 @@ type Config struct {
 	// Feature flags
 	CronUpdates bool // daily 3 AM auto-update cron job
 	Backups     bool // SQLite backup with retention policy
+
+	// Custom configuration
+	Volumes []string // Custom volume mounts (Docker format: host:container)
 
 	// Self-update configuration (see selfupdate.go for conventions)
 	// When configured, Update() checks GitHub releases for newer versions
@@ -43,7 +46,7 @@ type Matcha struct {
 func New(cfg Config) *Matcha {
 	// Apply defaults
 	if cfg.InstallDir == "" {
-		cfg.InstallDir = "/opt/" + cfg.Name
+		cfg.InstallDir = "/etc/matcha/apps/" + cfg.Name
 	}
 	if cfg.BinaryPath == "" {
 		cfg.BinaryPath = "/usr/local/bin/" + cfg.Name
@@ -70,17 +73,56 @@ func (m *Matcha) EnvPrefix() string {
 
 // NetworkName returns the Docker network name.
 func (m *Matcha) NetworkName() string {
-	return m.config.Name + "-network"
+	return "matcha-network"
 }
 
 // ProxyContainerName returns the proxy container name.
 func (m *Matcha) ProxyContainerName() string {
-	return m.config.Name + "-proxy"
+	return "matcha-proxy"
 }
 
 // AppContainerName returns the app container name.
 func (m *Matcha) AppContainerName() string {
-	return m.config.Name + "-app"
+	return m.config.Name
+}
+
+// Setup ensures shared infrastructure (Docker, network, proxy) is ready.
+func (m *Matcha) Setup() error {
+	fmt.Println()
+	fmt.Println(bold("Setting up Matcha"))
+	fmt.Println()
+
+	sp := m.StartSpinner("Docker")
+	if err := m.ensureDocker(); err != nil {
+		sp.Stop(false)
+		return err
+	}
+	sp.Stop(true)
+
+	sp = m.StartSpinner("Network")
+	if err := m.createNetwork(); err != nil {
+		sp.Stop(false)
+		return err
+	}
+	sp.Stop(true)
+
+	sp = m.StartSpinner("Proxy")
+	if err := m.deployProxy(); err != nil {
+		sp.Stop(false)
+		return err
+	}
+	sp.Stop(true)
+
+	fmt.Println()
+	return nil
+}
+
+// Logs streams logs from the app container.
+func (m *Matcha) Logs() error {
+	cmd := exec.Command("docker", "logs", "--tail", "100", "-f", m.AppContainerName())
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
 }
 
 // Install runs the full installation process.
