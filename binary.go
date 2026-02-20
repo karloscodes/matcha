@@ -27,10 +27,3 @@ func (m *Matcha) installBinary() error {
 
 	return nil
 }
-
-// upgradeBinary downloads and installs the latest binary.
-func (m *Matcha) upgradeBinary() error {
-	// For now, just copy the current binary
-	// In the future, this could download from GitHub releases
-	return m.installBinary()
-}

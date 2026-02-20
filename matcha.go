@@ -21,6 +21,7 @@ type Config struct {
 
 	// Feature flags
 	CronUpdates bool // daily 3 AM auto-update cron job
+	Backups     bool // SQLite backup with retention policy
 
 	// Custom configuration
 	Volumes []string // Container paths to mount (e.g., /app/storage)
@@ -327,6 +328,44 @@ func (m *Matcha) GetDomain() (string, error) {
 		return "", err
 	}
 	return app.Domain, nil
+}
+
+// BackupDB creates a backup of the database and returns the backup path.
+func (m *Matcha) BackupDB() (string, error) {
+	return m.createBackup()
+}
+
+// RestoreDB lists backups and restores the selected one.
+func (m *Matcha) RestoreDB() error {
+	if !m.config.Backups {
+		return fmt.Errorf("backups not enabled for this application")
+	}
+
+	printHeader("Restoring database for " + m.config.Name)
+
+	backups, err := m.listBackups()
+	if err != nil {
+		return fmt.Errorf("failed to list backups: %w", err)
+	}
+
+	if len(backups) == 0 {
+		return fmt.Errorf("no backups found")
+	}
+
+	selected, err := m.promptBackupSelection(backups)
+	if err != nil {
+		return fmt.Errorf("backup selection failed: %w", err)
+	}
+
+	sp := m.StartSpinner("Restoring")
+	if err := m.restoreBackup(selected); err != nil {
+		sp.Stop(false)
+		return fmt.Errorf("restore failed: %w", err)
+	}
+	sp.Stop(true)
+
+	printSuccess("Database restored")
+	return nil
 }
 
 // Exec runs a command inside the app container.

@@ -144,6 +144,8 @@ func (m *Matcha) deployProxy() error {
 		proxyDataDir = m.config.DataDirBase + "/proxy"
 	}
 	os.MkdirAll(proxyDataDir, 0755)
+	// kamal-proxy runs as uid 1001 and needs write access for ACME certs
+	exec.Command("chown", "1001:1001", proxyDataDir).Run()
 
 	args := []string{
 		"run", "-d",

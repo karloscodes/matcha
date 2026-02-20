@@ -220,7 +220,24 @@ func cmdDeploy() {
 	fmt.Printf("App %q deployed.\n", name)
 }
 
+func checkCLIUpdate() {
+	m := matcha.New(matcha.Config{
+		Name:           "matcha",
+		BinaryPath:     "/usr/local/bin/matcha",
+		ManagerRepo:    "karloscodes/matcha",
+		ManagerVersion: version,
+	})
+	// SelfUpdate re-execs on success, so the restarted process
+	// runs `matcha update <name>` again with the new binary.
+	_, err := m.SelfUpdate()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: CLI self-update check failed: %v\n", err)
+	}
+}
+
 func cmdUpdate() {
+	checkCLIUpdate()
+
 	name := requireAppName("update")
 	m := matchaFromConfig(name)
 

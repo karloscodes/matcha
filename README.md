@@ -18,7 +18,7 @@ On deploy, kamal-proxy health-checks the new container before switching traffic.
 
 ## Two ways to use Matcha
 
-### 1. Standalone CLI — deploy any Docker image
+### As a CLI — deploy any Docker image
 
 ```bash
 # Install matcha on your server
@@ -43,9 +43,9 @@ matcha exec plausible sh       # shell into container
 matcha remove plausible        # stop and unregister
 ```
 
-### 2. Embedded Go library — build your own installer
+### As a library — build a self-deploying binary
 
-For your own apps, embed Matcha to get a self-contained binary with install and update commands:
+Import Matcha into your Go project to get a single binary that installs, updates, and manages itself:
 
 ```go
 package main
@@ -102,7 +102,7 @@ myapp install    # Docker + proxy + app, all in one command
 myapp update     # pull latest, zero-downtime redeploy
 ```
 
-Both modes use the same shared proxy and config. An app installed via `myapp install` shows up in `matcha list`.
+Both ways use the same shared proxy and config. An app installed via `myapp install` shows up in `matcha list`.
 
 ## Updates
 
@@ -111,9 +111,55 @@ Set `CronUpdates: true` (Go library) or use a cron job to run `matcha update <na
 1. `docker pull` checks the remote image digest — if the `:latest` tag hasn't changed, no download happens
 2. If there's a new image, the new container starts and kamal-proxy health-checks it
 3. Once healthy, traffic switches to the new container. The old one is removed
-4. If any `.db` files exist in the data dir, a pre-deploy snapshot is taken automatically via `sqlite3 .backup`
+4. If `Backups: true`, a SQLite backup is created before each deploy (keeps last 3)
 
 Updates are cheap when nothing changed — just a digest check.
+
+## Self-update
+
+Matcha binaries can update themselves from GitHub releases.
+
+### As a CLI
+
+`matcha update <name>` checks for a newer matcha release at `karloscodes/matcha` before updating the app. If a new version exists, the binary at `/usr/local/bin/matcha` is replaced and the process re-execs to continue with the new code.
+
+### As a library
+
+When you set `ManagerRepo` and `ManagerVersion`, `Update()` checks your repo's GitHub releases for a newer binary before updating the Docker image.
+
+```
+myapp update
+  → check github.com/user/myapp/releases for newer version
+  → download myapp-linux-amd64, verify checksum
+  → replace /usr/local/bin/myapp
+  → re-exec: new binary continues the update
+  → pull Docker image, zero-downtime redeploy
+```
+
+To enable this:
+
+1. Set `ManagerRepo` and `ManagerVersion` in your config:
+
+```go
+m := matcha.New(matcha.Config{
+    Name:           "myapp",
+    AppImage:       "ghcr.io/user/myapp:latest",
+    ManagerRepo:    "user/myapp",
+    ManagerVersion: version, // set via ldflags at build time
+})
+```
+
+2. Build with version injected:
+
+```bash
+go build -ldflags "-X main.version=1.2.3" -o myapp ./cmd/myapp/
+```
+
+3. Publish releases with [GoReleaser](https://goreleaser.com) (or equivalent) that produce:
+   - `myapp-linux-amd64`, `myapp-linux-arm64` (raw binaries, no archives)
+   - `checksums.txt` (SHA256)
+
+See `.goreleaser.yml` in this repo for an example config.
 
 ## CLI commands
 
@@ -130,7 +176,7 @@ Updates are cheap when nothing changed — just a digest check.
 | `matcha remove <name>` | Stop and unregister |
 | `matcha migrate <name>` | Migrate from old per-app layout |
 
-## Config (Go library)
+## Config (library)
 
 | Field | Default | Description |
 |-------|---------|-------------|
@@ -140,6 +186,7 @@ Updates are cheap when nothing changed — just a digest check.
 | `HealthPath` | `/up` | Health check endpoint (must return 200) |
 | `Volumes` | `[]` | Container paths to mount (e.g., `/app/storage`) |
 | `CronUpdates` | `false` | Daily 3 AM auto-update cron job |
+| `Backups` | `false` | SQLite backup before each deploy (keeps last 3) |
 | `ProxyImage` | `basecamp/kamal-proxy:latest` | kamal-proxy image |
 | `ManagerRepo` | `""` | GitHub repo for self-updating the binary |
 | `ManagerVersion` | `""` | Current version (set via ldflags) |
