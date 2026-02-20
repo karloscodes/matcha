@@ -22,7 +22,7 @@ On deploy, kamal-proxy health-checks the new container before switching traffic.
 
 ```bash
 # Install matcha on your server
-curl -fsSL https://get.matcha.dev | sh
+curl -fsSL https://raw.githubusercontent.com/karloscodes/matcha/main/install.sh | sh
 
 # Set up shared infrastructure
 matcha setup
