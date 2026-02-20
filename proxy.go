@@ -11,11 +11,10 @@ func (m *Matcha) proxyDeployArgs(domain string) []string {
 	args := []string{
 		"exec", proxyContainer, "kamal-proxy", "deploy", serviceName,
 		"--target", target,
-		"--host", domain,
 	}
 
 	if !isLocalhost(domain) {
-		args = append(args, "--tls")
+		args = append(args, "--host", domain, "--tls")
 	}
 
 	args = append(args, "--health-check-path", m.config.HealthPath)

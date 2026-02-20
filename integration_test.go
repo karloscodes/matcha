@@ -58,7 +58,7 @@ func TestInstallInVM(t *testing.T) {
 	}
 
 	// Check health endpoint
-	if !runner.CheckHealth("http://localhost/_health", 10) {
+	if !runner.CheckHealth("http://localhost/", 10) {
 		t.Error("Health check failed after 10 attempts")
 	}
 }
@@ -127,8 +127,9 @@ import (
 
 func main() {
 	m := matcha.New(matcha.Config{
-		Name:     "testapp",
-		AppImage: "nginx:alpine", // Use nginx for testing
+		Name:       "testapp",
+		AppImage:   "nginx:alpine", // Use nginx for testing
+		HealthPath: "/",            // nginx serves / but not /up
 	})
 
 	if len(os.Args) < 2 {

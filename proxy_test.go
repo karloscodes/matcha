@@ -43,6 +43,9 @@ func TestProxyDeployArgsLocalhost(t *testing.T) {
 		if arg == "--tls" {
 			t.Error("should not include --tls for localhost")
 		}
+		if arg == "--host" {
+			t.Error("should not include --host for localhost")
+		}
 	}
 
 	found := false
