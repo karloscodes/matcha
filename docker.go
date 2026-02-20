@@ -9,8 +9,7 @@ import (
 )
 
 const (
-	maxRetries       = 3
-	healthCheckTries = 5
+	maxRetries = 3
 )
 
 // runDocker executes a docker command and returns output.
@@ -63,9 +62,9 @@ func (m *Matcha) createNetwork() error {
 	return err
 }
 
-// pullImages pulls the app and caddy images.
+// pullImages pulls the app and proxy images.
 func (m *Matcha) pullImages() error {
-	images := []string{m.config.AppImage, m.config.CaddyImage}
+	images := []string{m.config.AppImage, m.config.ProxyImage}
 
 	for _, image := range images {
 		for i := 0; i < maxRetries; i++ {
@@ -102,7 +101,6 @@ func (m *Matcha) deployApp(name string, data *envData) error {
 		"run", "-d",
 		"--name", name,
 		"--network", m.NetworkName(),
-		"--pull", "always",
 		"-v", m.config.InstallDir + "/storage:/app/storage",
 		"-v", m.config.InstallDir + "/logs:/app/logs",
 		"-e", fmt.Sprintf("%s_DOMAIN=%s", prefix, data.Domain),
@@ -118,52 +116,25 @@ func (m *Matcha) deployApp(name string, data *envData) error {
 	return err
 }
 
-// deployCaddy deploys the Caddy container.
-func (m *Matcha) deployCaddy(data *envData) error {
-	name := m.CaddyContainerName()
+// deployProxy starts the kamal-proxy container.
+func (m *Matcha) deployProxy() error {
+	name := m.ProxyContainerName()
 	m.stopAndRemove(name)
-
-	caddyFile := m.config.InstallDir + "/Caddyfile"
 
 	args := []string{
 		"run", "-d",
 		"--name", name,
 		"--network", m.NetworkName(),
-		"--pull", "always",
 		"-p", "80:80",
 		"-p", "443:443",
 		"-p", "443:443/udp",
-		"-v", caddyFile + ":/etc/caddy/Caddyfile:ro",
-		"-v", m.config.InstallDir + "/caddy:/data",
-		"-v", m.config.InstallDir + "/caddy/config:/config",
-		"-v", m.config.InstallDir + "/logs:/data/logs",
-		"-e", "DOMAIN=" + data.Domain,
-		"--memory=256m",
+		"-v", m.config.InstallDir + "/kamal-proxy-data:/home/kamal-proxy/.config/kamal-proxy",
+		"--memory=128m",
 		"--restart", "unless-stopped",
-		m.config.CaddyImage,
+		m.config.ProxyImage,
 	}
 
 	_, err := m.runDocker(args...)
-	return err
-}
-
-// waitForHealth waits for a container to become healthy.
-func (m *Matcha) waitForHealth(name string) error {
-	healthURL := fmt.Sprintf("http://localhost:%d%s", m.config.AppPort, m.config.HealthPath)
-
-	for i := 0; i < healthCheckTries; i++ {
-		if _, err := m.runDocker("exec", name, "curl", "-sf", healthURL); err == nil {
-			return nil
-		}
-		time.Sleep(2 * time.Second)
-	}
-	return fmt.Errorf("container %s not healthy after %d attempts", name, healthCheckTries)
-}
-
-// reloadCaddy reloads Caddy configuration.
-func (m *Matcha) reloadCaddy() error {
-	name := m.CaddyContainerName()
-	_, err := m.runDocker("exec", name, "caddy", "reload", "--config", "/etc/caddy/Caddyfile")
 	return err
 }
 
@@ -171,15 +142,4 @@ func (m *Matcha) reloadCaddy() error {
 func (m *Matcha) pruneImages() error {
 	_, err := m.runDocker("image", "prune", "-f")
 	return err
-}
-
-// getActiveSlot returns which slot (1 or 2) is currently running.
-func (m *Matcha) getActiveSlot() int {
-	if m.isRunning(m.AppContainerName(1)) {
-		return 1
-	}
-	if m.isRunning(m.AppContainerName(2)) {
-		return 2
-	}
-	return 0
 }
