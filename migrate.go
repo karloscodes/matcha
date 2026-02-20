@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // detectOldInstall checks if there's an old-style install at /opt/{name}.
@@ -31,22 +32,34 @@ func (m *Matcha) Migrate() error {
 
 // migrateToNewLayout performs the actual migration from old to new directory layout.
 func (m *Matcha) migrateToNewLayout(oldDir, newAppDir, newBase string) error {
-	// Read old config
-	origInstallDir := m.config.InstallDir
-	m.config.InstallDir = oldDir
-	data, err := m.readEnv()
+	// Read old .env file
+	vars, err := readEnvFile(filepath.Join(oldDir, ".env"))
 	if err != nil {
-		m.config.InstallDir = origInstallDir
 		return fmt.Errorf("failed to read old config: %w", err)
 	}
-	m.config.InstallDir = origInstallDir
+
+	prefix := m.EnvPrefix()
+	domain := vars[prefix+"_DOMAIN"]
+	appImage := vars["APP_IMAGE"]
+	if v, ok := vars[prefix+"_APP_IMAGE"]; ok {
+		appImage = v
+	}
+	if appImage == "" {
+		appImage = m.config.AppImage
+	}
+
+	// Get private key
+	privateKey := vars["PRIVATE_KEY"]
+	if privateKey == "" {
+		privateKey = vars[prefix+"_PRIVATE_KEY"]
+	}
 
 	// Register in new registry
 	reg := &Registry{BaseDir: newBase}
 	entry := AppEntry{
 		Name:       m.config.Name,
-		Image:      data.AppImage,
-		Domain:     data.Domain,
+		Image:      appImage,
+		Domain:     domain,
 		Port:       m.config.AppPort,
 		HealthPath: m.config.HealthPath,
 		Backups:    m.config.Backups,
@@ -56,26 +69,40 @@ func (m *Matcha) migrateToNewLayout(oldDir, newAppDir, newBase string) error {
 		return fmt.Errorf("failed to register app: %w", err)
 	}
 
-	// Copy .env to new location (preserves secrets)
-	if err := copyFile(filepath.Join(oldDir, ".env"), filepath.Join(newAppDir, ".env")); err != nil {
-		return fmt.Errorf("failed to copy .env: %w", err)
+	// Write new .env with just the private key (plus any user vars)
+	var envLines []string
+	envLines = append(envLines, "PRIVATE_KEY="+privateKey)
+	// Carry over non-managed vars
+	managedKeys := map[string]bool{
+		prefix + "_DOMAIN":      true,
+		prefix + "_PRIVATE_KEY": true,
+		"APP_IMAGE":             true,
+		"PROXY_IMAGE":           true,
+		"PRIVATE_KEY":           true,
+		"INSTALL_DIR":           true,
+		"BACKUP_PATH":           true,
+		"VERSION":               true,
+		"INSTALLER_URL":         true,
 	}
+	managedKeys[prefix+"_APP_IMAGE"] = true
+	for k, v := range vars {
+		if managedKeys[k] {
+			continue
+		}
+		envLines = append(envLines, k+"="+v)
+	}
+	envContent := strings.Join(envLines, "\n") + "\n"
+	os.WriteFile(filepath.Join(newAppDir, ".env"), []byte(envContent), 0600)
 
 	// Move storage and logs
 	for _, sub := range []string{"storage", "logs"} {
 		oldPath := filepath.Join(oldDir, sub)
 		newPath := filepath.Join(newAppDir, sub)
-
 		if _, err := os.Stat(oldPath); err != nil {
 			continue
 		}
-
-		// Remove empty dir created by registry.Save
 		os.RemoveAll(newPath)
-
-		// Try rename (fast, same filesystem)
 		if err := os.Rename(oldPath, newPath); err != nil {
-			// Fall back to copy (cross-device)
 			if err := copyDir(oldPath, newPath); err != nil {
 				return fmt.Errorf("failed to migrate %s: %w", sub, err)
 			}

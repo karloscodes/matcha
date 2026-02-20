@@ -82,7 +82,7 @@ func (m *Matcha) pullImages() error {
 
 // isRunning checks if a container is running.
 func (m *Matcha) isRunning(name string) bool {
-	out, err := m.runDocker("ps", "-q", "-f", "name="+name)
+	out, err := m.runDocker("ps", "-q", "--filter", "name=^"+name+"$")
 	return err == nil && strings.TrimSpace(out) != ""
 }
 
@@ -94,10 +94,12 @@ func (m *Matcha) stopAndRemove(name string) error {
 }
 
 // deployApp deploys an app container.
-func (m *Matcha) deployApp(name string, data *envData) error {
+func (m *Matcha) deployApp(name string) error {
 	m.stopAndRemove(name)
 
 	prefix := m.EnvPrefix()
+	privateKey := m.readPrivateKey()
+
 	args := []string{
 		"run", "-d",
 		"--name", name,
@@ -106,25 +108,23 @@ func (m *Matcha) deployApp(name string, data *envData) error {
 		"-v", m.config.InstallDir + "/logs:/app/logs",
 	}
 
-	// Custom volumes
 	for _, v := range m.config.Volumes {
 		args = append(args, "-v", v)
 	}
 
-	// Auto-generated env vars
+	// Auto-generated env vars from config
 	args = append(args,
-		"-e", fmt.Sprintf("%s_DOMAIN=%s", prefix, data.Domain),
-		"-e", fmt.Sprintf("%s_PRIVATE_KEY=%s", prefix, data.PrivateKey),
+		"-e", fmt.Sprintf("%s_DOMAIN=%s", prefix, m.domain),
+		"-e", fmt.Sprintf("%s_PRIVATE_KEY=%s", prefix, privateKey),
 		"-e", fmt.Sprintf("%s_APP_PORT=%d", prefix, m.config.AppPort),
 		"-e", fmt.Sprintf("%s_ENV=production", prefix),
 	)
 
-	// User env vars from .env file
+	// User env vars from .env file (skip managed keys)
 	envPath := m.config.InstallDir + "/.env"
 	userVars, _ := readEnvFile(envPath)
 	for k, v := range userVars {
-		// Skip matcha-managed keys
-		if strings.HasPrefix(k, prefix+"_") || k == "APP_IMAGE" || k == "PROXY_IMAGE" {
+		if k == "PRIVATE_KEY" || strings.HasPrefix(k, prefix+"_") || k == "APP_IMAGE" || k == "PROXY_IMAGE" {
 			continue
 		}
 		args = append(args, "-e", k+"="+v)
@@ -133,7 +133,7 @@ func (m *Matcha) deployApp(name string, data *envData) error {
 	args = append(args,
 		"--memory=512m",
 		"--restart", "unless-stopped",
-		data.AppImage,
+		m.config.AppImage,
 	)
 
 	_, err := m.runDocker(args...)

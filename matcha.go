@@ -86,8 +86,14 @@ func (m *Matcha) AppContainerName() string {
 	return m.config.Name
 }
 
-// Setup ensures shared infrastructure (Docker, network, proxy) is ready.
-func (m *Matcha) Setup() error {
+// Setup installs shared infrastructure: Docker, network, and proxy.
+func Setup() error {
+	m := &Matcha{
+		config: Config{
+			ProxyImage: "basecamp/kamal-proxy:latest",
+		},
+	}
+
 	fmt.Println()
 	fmt.Println(bold("Setting up Matcha"))
 	fmt.Println()
@@ -327,23 +333,28 @@ func (m *Matcha) SetImage(image string) {
 	m.config.AppImage = image
 }
 
-// SaveImage persists the current app image to the .env file.
+// SaveImage persists the current app image to the registry.
 func (m *Matcha) SaveImage() error {
-	data, err := m.readEnv()
+	reg := &Registry{BaseDir: "/etc/matcha"}
+	app, err := reg.Load(m.config.Name)
 	if err != nil {
 		return err
 	}
-	data.AppImage = m.config.AppImage
-	return m.saveEnv(data)
+	app.Image = m.config.AppImage
+	return reg.Save(app)
 }
 
-// GetDomain reads the domain from the .env file.
+// GetDomain reads the domain from config or registry.
 func (m *Matcha) GetDomain() (string, error) {
-	data, err := m.readEnv()
+	if m.domain != "" {
+		return m.domain, nil
+	}
+	reg := &Registry{BaseDir: "/etc/matcha"}
+	app, err := reg.Load(m.config.Name)
 	if err != nil {
 		return "", err
 	}
-	return data.Domain, nil
+	return app.Domain, nil
 }
 
 // Exec runs a command inside the app container.

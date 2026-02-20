@@ -9,7 +9,7 @@ import (
 func TestDetectOldInstall(t *testing.T) {
 	t.Run("detects old install", func(t *testing.T) {
 		// We can't easily test /opt detection without root,
-		// so test the migrateToNewLayout function directly
+		// so test reading old .env format directly
 		dir := t.TempDir()
 		oldDir := filepath.Join(dir, "opt", "fusionaly")
 		os.MkdirAll(oldDir, 0755)
@@ -23,13 +23,13 @@ func TestDetectOldInstall(t *testing.T) {
 			InstallDir: oldDir,
 		})
 
-		// Read env should work with old dir
-		data, err := m.readEnv()
+		// loadConfigFromEnv should work with old dir
+		err := m.loadConfigFromEnv()
 		if err != nil {
 			t.Fatalf("failed to read old .env: %v", err)
 		}
-		if data.Domain != "app.example.com" {
-			t.Errorf("expected domain app.example.com, got %s", data.Domain)
+		if m.domain != "app.example.com" {
+			t.Errorf("expected domain app.example.com, got %s", m.domain)
 		}
 	})
 }

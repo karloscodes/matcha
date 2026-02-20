@@ -9,14 +9,10 @@ import (
 	"strings"
 )
 
-// envData holds the environment configuration.
+// envData is kept minimal — only secrets that need to persist.
 type envData struct {
-	Domain     string
 	PrivateKey string
-	AppImage   string
-	ProxyImage string
-	// DNS status (not saved to .env, used for display)
-	dnsStatus *dnsStatus
+	// Domain, AppImage, ProxyImage now come from app.json via registry
 }
 
 // collectConfig prompts the user for configuration with DNS check and confirmation.
@@ -103,12 +99,12 @@ func (m *Matcha) collectConfig() error {
 
 // setupConfig creates directories and saves configuration after user confirms.
 func (m *Matcha) setupConfig() error {
-	privateKey, err := generatePrivateKey()
+	privateKey, err := GeneratePrivateKey()
 	if err != nil {
 		return fmt.Errorf("failed to generate private key: %w", err)
 	}
 
-	// Register app in registry
+	// Register app in registry (creates dirs, writes app.json)
 	reg := &Registry{BaseDir: "/etc/matcha"}
 	entry := AppEntry{
 		Name:       m.config.Name,
@@ -123,102 +119,80 @@ func (m *Matcha) setupConfig() error {
 		return fmt.Errorf("failed to register app: %w", err)
 	}
 
-	// Save .env with secrets
-	data := &envData{
-		Domain:     m.domain,
-		PrivateKey: privateKey,
-		AppImage:   m.config.AppImage,
-		ProxyImage: m.config.ProxyImage,
-	}
-
-	if err := m.saveEnv(data); err != nil {
-		return fmt.Errorf("failed to save config: %w", err)
+	// Write .env with only the private key
+	envPath := m.config.InstallDir + "/.env"
+	content := fmt.Sprintf("PRIVATE_KEY=%s\n", privateKey)
+	if err := os.WriteFile(envPath, []byte(content), 0600); err != nil {
+		return fmt.Errorf("failed to write .env: %w", err)
 	}
 
 	return nil
 }
 
-// loadConfig loads existing configuration from .env.
+// loadConfig loads existing configuration from registry or .env fallback.
 func (m *Matcha) loadConfig() error {
-	data, err := m.readEnv()
-	if err != nil {
-		return fmt.Errorf("failed to read .env: %w", err)
+	// Try registry first (new multi-app layout)
+	reg := &Registry{BaseDir: "/etc/matcha"}
+	if app, err := reg.Load(m.config.Name); err == nil {
+		if app.Image != "" {
+			m.config.AppImage = app.Image
+		}
+		if app.Domain != "" {
+			m.domain = app.Domain
+		}
+		if app.Port != 0 {
+			m.config.AppPort = app.Port
+		}
+		if app.HealthPath != "" {
+			m.config.HealthPath = app.HealthPath
+		}
+		m.config.Backups = app.Backups
+		m.config.Volumes = app.Volumes
+		return nil
 	}
 
-	// Override config with values from .env
-	if data.AppImage != "" {
-		m.config.AppImage = data.AppImage
+	// Fall back to old .env format (pre-migration installs)
+	return m.loadConfigFromEnv()
+}
+
+// loadConfigFromEnv reads the old-style .env for backward compat.
+func (m *Matcha) loadConfigFromEnv() error {
+	envPath := m.config.InstallDir + "/.env"
+	vars, err := readEnvFile(envPath)
+	if err != nil {
+		return fmt.Errorf("failed to read config: %w", err)
 	}
-	if data.ProxyImage != "" {
-		m.config.ProxyImage = data.ProxyImage
+
+	prefix := m.EnvPrefix()
+	if v, ok := vars[prefix+"_DOMAIN"]; ok {
+		m.domain = v
 	}
-	// Store domain for GetDomain()
-	m.domain = data.Domain
+	if v, ok := vars["APP_IMAGE"]; ok {
+		m.config.AppImage = v
+	}
+	if v, ok := vars[prefix+"_APP_IMAGE"]; ok {
+		m.config.AppImage = v
+	}
+	if v, ok := vars["PROXY_IMAGE"]; ok {
+		m.config.ProxyImage = v
+	}
 
 	return nil
 }
 
-// readEnv reads the .env file and returns envData.
-func (m *Matcha) readEnv() (*envData, error) {
+// readPrivateKey reads the private key from .env file.
+func (m *Matcha) readPrivateKey() string {
 	envPath := m.config.InstallDir + "/.env"
-	prefix := m.EnvPrefix()
-
-	data := &envData{}
-
-	file, err := os.Open(envPath)
-	if err != nil {
-		return nil, err
+	vars, _ := readEnvFile(envPath)
+	if v, ok := vars["PRIVATE_KEY"]; ok {
+		return v
 	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-
-		parts := strings.SplitN(line, "=", 2)
-		if len(parts) != 2 {
-			continue
-		}
-
-		key := strings.TrimSpace(parts[0])
-		value := strings.TrimSpace(parts[1])
-
-		switch key {
-		case prefix + "_DOMAIN":
-			data.Domain = value
-		case prefix + "_PRIVATE_KEY":
-			data.PrivateKey = value
-		case prefix + "_APP_IMAGE", "APP_IMAGE":
-			data.AppImage = value
-		case "PROXY_IMAGE":
-			data.ProxyImage = value
-		}
-	}
-
-	return data, scanner.Err()
-}
-
-// saveEnv writes the .env file with only essential fields.
-// These are values that need to persist and can change:
-// - DOMAIN: user's configured domain
-// - APP_IMAGE: current app image (changes on upgrade OSS->Pro)
-// - PROXY_IMAGE: current proxy image
-// - PRIVATE_KEY: app secret key
-func (m *Matcha) saveEnv(data *envData) error {
-	envPath := m.config.InstallDir + "/.env"
+	// Fall back to prefixed key (old format)
 	prefix := m.EnvPrefix()
-
-	var lines []string
-	lines = append(lines, fmt.Sprintf("%s_DOMAIN=%s", prefix, data.Domain))
-	lines = append(lines, fmt.Sprintf("APP_IMAGE=%s", data.AppImage))
-	lines = append(lines, fmt.Sprintf("PROXY_IMAGE=%s", data.ProxyImage))
-	lines = append(lines, fmt.Sprintf("%s_PRIVATE_KEY=%s", prefix, data.PrivateKey))
-
-	content := strings.Join(lines, "\n") + "\n"
-	return os.WriteFile(envPath, []byte(content), 0600)
+	if v, ok := vars[prefix+"_PRIVATE_KEY"]; ok {
+		return v
+	}
+	return ""
 }
 
 // validateDomain performs basic domain validation.
@@ -235,8 +209,8 @@ func (m *Matcha) validateDomain(domain string) error {
 	return nil
 }
 
-// generatePrivateKey creates a secure random key.
-func generatePrivateKey() (string, error) {
+// GeneratePrivateKey creates a secure random key.
+func GeneratePrivateKey() (string, error) {
 	key := make([]byte, 32)
 	if _, err := rand.Read(key); err != nil {
 		return "", err

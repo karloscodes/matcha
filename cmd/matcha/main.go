@@ -1,8 +1,6 @@
 package main
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"os"
 	"strconv"
@@ -102,13 +100,10 @@ func matchaFromRegistry(name string) *matcha.Matcha {
 }
 
 func cmdSetup() {
-	m := matcha.New(matcha.Config{
-		Name:     "matcha-setup",
-		AppImage: "unused",
-	})
-	if err := m.Setup(); err != nil {
+	if err := matcha.Setup(); err != nil {
 		fatal(err)
 	}
+	fmt.Println("Matcha is ready. Add your first app with 'matcha add'.")
 }
 
 func cmdAdd() {
@@ -191,19 +186,14 @@ func cmdAdd() {
 		fatal(fmt.Errorf("failed to register app: %w", err))
 	}
 
-	// Generate private key and write initial .env so Deploy() can read it
-	key := make([]byte, 32)
-	if _, err := rand.Read(key); err != nil {
+	// Generate private key and write .env (secrets only)
+	privateKey, err := matcha.GeneratePrivateKey()
+	if err != nil {
 		fatal(fmt.Errorf("failed to generate private key: %w", err))
 	}
-	privateKey := hex.EncodeToString(key)
-
-	prefix := strings.ToUpper(name)
-	envContent := fmt.Sprintf("%s_DOMAIN=%s\nAPP_IMAGE=%s\nPROXY_IMAGE=basecamp/kamal-proxy:latest\n%s_PRIVATE_KEY=%s\n",
-		prefix, domain, image, prefix, privateKey)
 
 	envPath := reg.EnvPath(name)
-	if err := os.WriteFile(envPath, []byte(envContent), 0600); err != nil {
+	if err := os.WriteFile(envPath, []byte("PRIVATE_KEY="+privateKey+"\n"), 0600); err != nil {
 		fatal(fmt.Errorf("failed to write .env: %w", err))
 	}
 
@@ -215,7 +205,8 @@ func cmdAdd() {
 		fmt.Printf("  Volumes: %s\n", strings.Join(volumes, ", "))
 	}
 	fmt.Println()
-	fmt.Printf("Run 'matcha deploy %s' to deploy.\n", name)
+	fmt.Printf("Edit env vars:  %s\n", envPath)
+	fmt.Printf("Then deploy:    matcha deploy %s\n", name)
 }
 
 func cmdDeploy() {
