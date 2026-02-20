@@ -68,7 +68,7 @@ func TestSaveAndReadEnv(t *testing.T) {
 	m := New(Config{
 		Name:       "testapp",
 		AppImage:   "test:latest",
-		CaddyImage: "caddy:2.9-alpine",
+		ProxyImage: "basecamp/kamal-proxy:latest",
 		InstallDir: tmpDir,
 	})
 
@@ -76,7 +76,7 @@ func TestSaveAndReadEnv(t *testing.T) {
 		Domain:     "test.example.com",
 		PrivateKey: "abc123def456",
 		AppImage:   "test:latest",
-		CaddyImage: "caddy:2.9-alpine",
+		ProxyImage: "basecamp/kamal-proxy:latest",
 	}
 
 	err := m.saveEnv(data)
@@ -98,8 +98,8 @@ func TestSaveAndReadEnv(t *testing.T) {
 	if got.AppImage != data.AppImage {
 		t.Errorf("AppImage = %q, want %q", got.AppImage, data.AppImage)
 	}
-	if got.CaddyImage != data.CaddyImage {
-		t.Errorf("CaddyImage = %q, want %q", got.CaddyImage, data.CaddyImage)
+	if got.ProxyImage != data.ProxyImage {
+		t.Errorf("ProxyImage = %q, want %q", got.ProxyImage, data.ProxyImage)
 	}
 }
 
@@ -110,13 +110,13 @@ func TestLoadConfigOverridesFromEnv(t *testing.T) {
 	m := New(Config{
 		Name:       "testapp",
 		AppImage:   "oss:latest",
-		CaddyImage: "caddy:2.7-alpine",
+		ProxyImage: "basecamp/kamal-proxy:v0.8.1",
 		InstallDir: tmpDir,
 	})
 
 	// Write .env with different images (simulating upgrade scenario)
 	envPath := tmpDir + "/.env"
-	envContent := "TESTAPP_DOMAIN=upgraded.example.com\nAPP_IMAGE=pro:latest\nCADDY_IMAGE=caddy:2.9-alpine\nTESTAPP_PRIVATE_KEY=key123\n"
+	envContent := "TESTAPP_DOMAIN=upgraded.example.com\nAPP_IMAGE=pro:latest\nPROXY_IMAGE=basecamp/kamal-proxy:v0.9.0\nTESTAPP_PRIVATE_KEY=key123\n"
 	if err := os.WriteFile(envPath, []byte(envContent), 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -130,8 +130,8 @@ func TestLoadConfigOverridesFromEnv(t *testing.T) {
 	if m.config.AppImage != "pro:latest" {
 		t.Errorf("AppImage = %q, want 'pro:latest'", m.config.AppImage)
 	}
-	if m.config.CaddyImage != "caddy:2.9-alpine" {
-		t.Errorf("CaddyImage = %q, want 'caddy:2.9-alpine'", m.config.CaddyImage)
+	if m.config.ProxyImage != "basecamp/kamal-proxy:v0.9.0" {
+		t.Errorf("ProxyImage = %q, want 'basecamp/kamal-proxy:v0.9.0'", m.config.ProxyImage)
 	}
 	if m.domain != "upgraded.example.com" {
 		t.Errorf("domain = %q, want 'upgraded.example.com'", m.domain)
@@ -144,13 +144,13 @@ func TestSaveImagePersistsChange(t *testing.T) {
 	m := New(Config{
 		Name:       "testapp",
 		AppImage:   "oss:latest",
-		CaddyImage: "caddy:2.9-alpine",
+		ProxyImage: "basecamp/kamal-proxy:latest",
 		InstallDir: tmpDir,
 	})
 
 	// Create initial .env
 	envPath := tmpDir + "/.env"
-	envContent := "TESTAPP_DOMAIN=test.example.com\nAPP_IMAGE=oss:latest\nCADDY_IMAGE=caddy:2.9-alpine\nTESTAPP_PRIVATE_KEY=key456\n"
+	envContent := "TESTAPP_DOMAIN=test.example.com\nAPP_IMAGE=oss:latest\nPROXY_IMAGE=basecamp/kamal-proxy:latest\nTESTAPP_PRIVATE_KEY=key456\n"
 	if err := os.WriteFile(envPath, []byte(envContent), 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -191,7 +191,7 @@ func TestReadEnvWithLegacyFields(t *testing.T) {
 	envPath := tmpDir + "/.env"
 	envContent := `TESTAPP_DOMAIN=legacy.example.com
 APP_IMAGE=legacyapp:v1
-CADDY_IMAGE=caddy:2.7-alpine
+PROXY_IMAGE=basecamp/kamal-proxy:v0.8.0
 INSTALL_DIR=/opt/testapp
 BACKUP_PATH=/opt/testapp/storage/backups
 VERSION=latest
@@ -214,7 +214,7 @@ TESTAPP_PRIVATE_KEY=legacykey
 	if data.AppImage != "legacyapp:v1" {
 		t.Errorf("AppImage = %q, want 'legacyapp:v1'", data.AppImage)
 	}
-	if data.CaddyImage != "caddy:2.7-alpine" {
-		t.Errorf("CaddyImage = %q, want 'caddy:2.7-alpine'", data.CaddyImage)
+	if data.ProxyImage != "basecamp/kamal-proxy:v0.8.0" {
+		t.Errorf("ProxyImage = %q, want 'basecamp/kamal-proxy:v0.8.0'", data.ProxyImage)
 	}
 }

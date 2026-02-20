@@ -10,34 +10,22 @@ func (m *Matcha) showStatus() error {
 	fmt.Printf("\n%s Status\n", m.config.Name)
 	fmt.Println(strings.Repeat("=", 40))
 
-	// Check Caddy
-	caddyName := m.CaddyContainerName()
-	if m.isRunning(caddyName) {
-		fmt.Printf("  Caddy:    %s✓ running%s\n", "\033[0;32m", "\033[0m")
-		m.showContainerInfo(caddyName)
+	// Check proxy
+	proxyName := m.ProxyContainerName()
+	if m.isRunning(proxyName) {
+		fmt.Printf("  Proxy:    %s✓ running%s\n", "\033[0;32m", "\033[0m")
+		m.showContainerInfo(proxyName)
 	} else {
-		fmt.Printf("  Caddy:    %s✗ not running%s\n", "\033[0;31m", "\033[0m")
+		fmt.Printf("  Proxy:    %s✗ not running%s\n", "\033[0;31m", "\033[0m")
 	}
 
-	// Check app container(s)
-	if m.config.BlueGreen {
-		for slot := 1; slot <= 2; slot++ {
-			name := m.AppContainerName(slot)
-			if m.isRunning(name) {
-				fmt.Printf("  App (%d):  %s✓ running%s\n", slot, "\033[0;32m", "\033[0m")
-				m.showContainerInfo(name)
-			} else {
-				fmt.Printf("  App (%d):  %s· not running%s\n", slot, "\033[0;33m", "\033[0m")
-			}
-		}
+	// Check app container
+	name := m.AppContainerName()
+	if m.isRunning(name) {
+		fmt.Printf("  App:      %s✓ running%s\n", "\033[0;32m", "\033[0m")
+		m.showContainerInfo(name)
 	} else {
-		name := m.AppContainerName(0)
-		if m.isRunning(name) {
-			fmt.Printf("  App:      %s✓ running%s\n", "\033[0;32m", "\033[0m")
-			m.showContainerInfo(name)
-		} else {
-			fmt.Printf("  App:      %s✗ not running%s\n", "\033[0;31m", "\033[0m")
-		}
+		fmt.Printf("  App:      %s✗ not running%s\n", "\033[0;31m", "\033[0m")
 	}
 
 	// Show config

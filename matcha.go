@@ -127,7 +127,7 @@ func (m *Matcha) Install() error {
 	}
 	sp.Stop(true)
 
-	// Configure (create dirs, save .env, generate Caddyfile)
+	// Configure (create dirs, save .env)
 	sp = m.StartSpinner("Configuring")
 	if err := m.setupConfig(); err != nil {
 		sp.Stop(false)

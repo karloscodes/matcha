@@ -19,12 +19,12 @@ func TestNew(t *testing.T) {
 			t.Errorf("BinaryPath = %q, want /usr/local/bin/testapp", m.config.BinaryPath)
 		}
 
-		if m.config.CaddyImage != "caddy:2-alpine" {
-			t.Errorf("CaddyImage = %q, want caddy:2-alpine", m.config.CaddyImage)
+		if m.config.ProxyImage != "basecamp/kamal-proxy:latest" {
+			t.Errorf("ProxyImage = %q, want basecamp/kamal-proxy:latest", m.config.ProxyImage)
 		}
 
-		if m.config.HealthPath != "/_health" {
-			t.Errorf("HealthPath = %q, want /_health", m.config.HealthPath)
+		if m.config.HealthPath != "/up" {
+			t.Errorf("HealthPath = %q, want /up", m.config.HealthPath)
 		}
 
 		if m.config.AppPort != 8080 {
@@ -75,45 +75,30 @@ func TestNetworkName(t *testing.T) {
 	}
 }
 
-func TestCaddyContainerName(t *testing.T) {
+func TestProxyContainerName(t *testing.T) {
 	m := New(Config{Name: "fusionaly", AppImage: "test:latest"})
 
-	got := m.CaddyContainerName()
+	got := m.ProxyContainerName()
 
-	if got != "fusionaly-caddy" {
-		t.Errorf("CaddyContainerName() = %q, want fusionaly-caddy", got)
+	if got != "fusionaly-proxy" {
+		t.Errorf("ProxyContainerName() = %q, want fusionaly-proxy", got)
 	}
 }
 
 func TestAppContainerName(t *testing.T) {
-	t.Run("blue-green enabled", func(t *testing.T) {
-		m := New(Config{Name: "fusionaly", AppImage: "test:latest", BlueGreen: true})
+	m := New(Config{Name: "fusionaly", AppImage: "test:latest"})
 
-		if got := m.AppContainerName(1); got != "fusionaly-app-1" {
-			t.Errorf("AppContainerName(1) = %q, want fusionaly-app-1", got)
-		}
+	got := m.AppContainerName()
 
-		if got := m.AppContainerName(2); got != "fusionaly-app-2" {
-			t.Errorf("AppContainerName(2) = %q, want fusionaly-app-2", got)
-		}
-	})
-
-	t.Run("blue-green disabled", func(t *testing.T) {
-		m := New(Config{Name: "fusionaly", AppImage: "test:latest", BlueGreen: false})
-
-		got := m.AppContainerName(0)
-
-		if got != "fusionaly-app" {
-			t.Errorf("AppContainerName(0) = %q, want fusionaly-app", got)
-		}
-	})
+	if got != "fusionaly-app" {
+		t.Errorf("AppContainerName() = %q, want fusionaly-app", got)
+	}
 }
 
 func TestGetConfig(t *testing.T) {
 	cfg := Config{
-		Name:      "myapp",
-		AppImage:  "myapp:v1",
-		BlueGreen: true,
+		Name:     "myapp",
+		AppImage: "myapp:v1",
 	}
 	m := New(cfg)
 
@@ -123,7 +108,7 @@ func TestGetConfig(t *testing.T) {
 		t.Errorf("GetConfig().Name = %q, want myapp", got.Name)
 	}
 
-	if got.BlueGreen != true {
-		t.Errorf("GetConfig().BlueGreen = %v, want true", got.BlueGreen)
+	if got.AppImage != "myapp:v1" {
+		t.Errorf("GetConfig().AppImage = %q, want myapp:v1", got.AppImage)
 	}
 }

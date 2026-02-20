@@ -53,8 +53,8 @@ func TestInstallInVM(t *testing.T) {
 		t.Errorf("App container not running. Docker ps output: %s", out)
 	}
 
-	if !strings.Contains(out, "testapp-caddy") {
-		t.Errorf("Caddy container not running. Docker ps output: %s", out)
+	if !strings.Contains(out, "testapp-proxy") {
+		t.Errorf("Proxy container not running. Docker ps output: %s", out)
 	}
 
 	// Check health endpoint
