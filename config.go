@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 )
 
@@ -115,10 +116,16 @@ func (m *Matcha) setupConfig() error {
 	}
 
 	// Create subdirectories
-	for _, dir := range []string{"storage", "logs", "storage/backups"} {
+	for _, dir := range []string{"storage", "logs", "storage/backups", "kamal-proxy-data"} {
 		if err := os.MkdirAll(m.config.InstallDir+"/"+dir, 0755); err != nil {
 			return fmt.Errorf("failed to create %s: %w", dir, err)
 		}
+	}
+
+	// kamal-proxy runs as uid 1001 inside the container
+	proxyDataDir := m.config.InstallDir + "/kamal-proxy-data"
+	if err := exec.Command("chown", "1001:1001", proxyDataDir).Run(); err != nil {
+		return fmt.Errorf("failed to set proxy data permissions: %w", err)
 	}
 
 	// Save config

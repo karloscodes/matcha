@@ -3,6 +3,7 @@ package matcha
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -121,6 +122,11 @@ func (m *Matcha) deployProxy() error {
 	name := m.ProxyContainerName()
 	m.stopAndRemove(name)
 
+	// Ensure proxy data dir exists with correct ownership (kamal-proxy runs as uid 1001)
+	proxyDataDir := m.config.InstallDir + "/kamal-proxy-data"
+	os.MkdirAll(proxyDataDir, 0755)
+	exec.Command("chown", "1001:1001", proxyDataDir).Run()
+
 	args := []string{
 		"run", "-d",
 		"--name", name,
@@ -128,7 +134,7 @@ func (m *Matcha) deployProxy() error {
 		"-p", "80:80",
 		"-p", "443:443",
 		"-p", "443:443/udp",
-		"-v", m.config.InstallDir + "/kamal-proxy-data:/home/kamal-proxy/.config/kamal-proxy",
+		"-v", proxyDataDir + ":/home/kamal-proxy/.config/kamal-proxy",
 		"--memory=128m",
 		"--restart", "unless-stopped",
 		m.config.ProxyImage,
