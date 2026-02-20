@@ -49,11 +49,11 @@ func TestInstallInVM(t *testing.T) {
 		t.Fatalf("Failed to check containers: %v", err)
 	}
 
-	if !strings.Contains(out, "testapp-app") {
+	if !strings.Contains(out, "testapp") {
 		t.Errorf("App container not running. Docker ps output: %s", out)
 	}
 
-	if !strings.Contains(out, "testapp-proxy") {
+	if !strings.Contains(out, "matcha-proxy") {
 		t.Errorf("Proxy container not running. Docker ps output: %s", out)
 	}
 
@@ -112,7 +112,7 @@ func TestUpdateInVM(t *testing.T) {
 
 	// Verify still running
 	out, _ := runner.RunCommand("docker ps --format '{{.Names}}'", true)
-	if !strings.Contains(out, "testapp-app") {
+	if !strings.Contains(out, "testapp") {
 		t.Errorf("App container not running after update")
 	}
 }
