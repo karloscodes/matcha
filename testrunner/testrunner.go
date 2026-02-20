@@ -31,6 +31,8 @@ type Config struct {
 	Args       []string
 	VMName     string
 	Debug      bool
+	ReuseVM     bool // Skip VM delete+create if already running
+	SkipCleanup bool // Don't delete VM after run
 }
 
 // DefaultConfig returns a Config with default values
@@ -102,29 +104,40 @@ func (r *TestRunner) runInVM() error {
 		return fmt.Errorf("orb not found: %w", err)
 	}
 
-	// Cleanup existing VM
-	r.logf("Cleaning up existing VM: %s", r.Config.VMName)
-	exec.Command("orb", "delete", r.Config.VMName, "-f").Run()
-
-	// Launch VM
-	r.logf("Launching VM: %s", r.Config.VMName)
-	launchCmd := exec.Command("orb", "create", "ubuntu:22.04", r.Config.VMName)
-	launchCmd.Stdout = r.Logger
-	launchCmd.Stderr = r.Logger
-
-	if err := launchCmd.Run(); err != nil {
-		return fmt.Errorf("failed to launch VM: %w", err)
+	// Check if VM already exists and is running
+	vmRunning := false
+	if r.Config.ReuseVM {
+		out, _ := exec.Command("orb", "list").CombinedOutput()
+		vmRunning = strings.Contains(string(out), r.Config.VMName) && strings.Contains(string(out), "running")
 	}
 
-	// Wait for VM to be ready
-	r.logf("Waiting for VM to be ready")
-	for i := 0; i < 30; i++ {
-		out, _ := exec.Command("orb", "list").CombinedOutput()
-		if strings.Contains(string(out), r.Config.VMName) && strings.Contains(string(out), "running") {
-			r.logf("VM ready after %d seconds", i+1)
-			break
+	if vmRunning {
+		r.logf("Reusing existing VM: %s", r.Config.VMName)
+	} else {
+		// Cleanup existing VM
+		r.logf("Cleaning up existing VM: %s", r.Config.VMName)
+		exec.Command("orb", "delete", r.Config.VMName, "-f").Run()
+
+		// Launch VM
+		r.logf("Launching VM: %s", r.Config.VMName)
+		launchCmd := exec.Command("orb", "create", "ubuntu:22.04", r.Config.VMName)
+		launchCmd.Stdout = r.Logger
+		launchCmd.Stderr = r.Logger
+
+		if err := launchCmd.Run(); err != nil {
+			return fmt.Errorf("failed to launch VM: %w", err)
 		}
-		time.Sleep(time.Second)
+
+		// Wait for VM to be ready
+		r.logf("Waiting for VM to be ready")
+		for i := 0; i < 30; i++ {
+			out, _ := exec.Command("orb", "list").CombinedOutput()
+			if strings.Contains(string(out), r.Config.VMName) && strings.Contains(string(out), "running") {
+				r.logf("VM ready after %d seconds", i+1)
+				break
+			}
+			time.Sleep(time.Second)
+		}
 	}
 
 	// Copy binary to VM
@@ -169,12 +182,12 @@ func (r *TestRunner) runInVM() error {
 
 	err = r.runWithTimeout(cmd)
 
-	// Cleanup unless KEEP_VM is set
-	if os.Getenv("KEEP_VM") != "1" {
+	// Cleanup unless told to keep
+	if r.Config.SkipCleanup || os.Getenv("KEEP_VM") == "1" {
+		r.logf("Keeping VM: %s", r.Config.VMName)
+	} else {
 		r.logf("Cleaning up VM")
 		exec.Command("orb", "delete", r.Config.VMName, "-f").Run()
-	} else {
-		r.logf("Keeping VM for inspection: %s", r.Config.VMName)
 	}
 
 	return err

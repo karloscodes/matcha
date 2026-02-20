@@ -83,18 +83,27 @@ func TestUpdateInVM(t *testing.T) {
 	config.EnvVars = map[string]string{"ENV": "test"}
 	config.Debug = true
 
-	// Install first
+	// Clean up VM at end of test
+	t.Cleanup(func() {
+		if os.Getenv("KEEP_VM") != "1" {
+			exec.Command("orb", "delete", "matcha-update-test", "-f").Run()
+		}
+	})
+
+	// Install first (keep VM for update step)
 	config.Args = []string{"install"}
 	config.StdinInput = "test.localhost\ny\n"
+	config.SkipCleanup = true
 
 	runner := testrunner.NewTestRunner(config)
 	if err := runner.Run(); err != nil {
 		t.Fatalf("Install failed: %v", err)
 	}
 
-	// Now update
+	// Now update (reuse the VM, keep it for verification)
 	config.Args = []string{"update"}
 	config.StdinInput = ""
+	config.ReuseVM = true
 
 	runner = testrunner.NewTestRunner(config)
 	if err := runner.Run(); err != nil {
