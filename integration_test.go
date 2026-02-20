@@ -130,6 +130,7 @@ func main() {
 		Name:       "testapp",
 		AppImage:   "nginx:alpine", // Use nginx for testing
 		HealthPath: "/",            // nginx serves / but not /up
+		AppPort:    80,             // nginx listens on 80
 	})
 
 	if len(os.Args) < 2 {
