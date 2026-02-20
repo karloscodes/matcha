@@ -27,6 +27,8 @@ func main() {
 		cmdDeploy()
 	case "update":
 		cmdUpdate()
+	case "update-all":
+		cmdUpdateAll()
 	case "list", "ls":
 		cmdList()
 	case "status":
@@ -37,8 +39,6 @@ func main() {
 		cmdExec()
 	case "logs":
 		cmdLogs()
-	case "migrate":
-		cmdMigrate()
 	case "version":
 		fmt.Println("matcha " + version)
 	default:
@@ -56,13 +56,21 @@ Commands:
   add <name>         Register a new app
   deploy <name>      Deploy an app
   update <name>      Pull latest image and redeploy
+  update-all         Update all registered apps
   list (ls)          List all registered apps
   status <name>      Show app status
   remove (rm) <name> Remove an app
   exec <name> <cmd>  Run a command in the app container
   logs <name>        Stream app logs
-  migrate <name>     Migrate from old layout to YAML config
   version            Print version`)
+}
+
+func extractSubdomain(domain string) string {
+	parts := strings.Split(domain, ".")
+	if len(parts) <= 2 {
+		return "@"
+	}
+	return parts[0]
 }
 
 func fatal(err error) {
@@ -95,7 +103,15 @@ func cmdSetup() {
 	if err := matcha.Setup(); err != nil {
 		fatal(err)
 	}
+	setupCron()
 	fmt.Println("Matcha is ready. Add your first app with 'matcha add'.")
+}
+
+func setupCron() {
+	content := "# Matcha auto-update (all apps)\n0 3 * * * root /usr/local/bin/matcha update-all >> /var/log/matcha-update.log 2>&1\n"
+	if err := os.WriteFile("/etc/cron.d/matcha-update", []byte(content), 0644); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: could not set up cron: %v\n", err)
+	}
 }
 
 func cmdAdd() {
@@ -212,12 +228,28 @@ func cmdAdd() {
 
 func cmdDeploy() {
 	name := requireAppName("deploy")
-	m := matchaFromConfig(name)
+	app, err := matcha.LoadApp(name)
+	if err != nil {
+		fatal(fmt.Errorf("app %q not found. Run 'matcha list' to see registered apps", name))
+	}
+	m := matcha.New(matcha.Config{
+		Name:       name,
+		AppImage:   app.Image,
+		AppPort:    app.Port,
+		HealthPath: app.HealthPath,
+		Volumes:    app.Volumes,
+	})
 
 	if err := m.Deploy(); err != nil {
 		fatal(err)
 	}
-	fmt.Printf("App %q deployed.\n", name)
+
+	fmt.Printf("\nApp %q deployed.\n", name)
+	fmt.Printf("\nPoint your domain to this server:\n\n")
+	fmt.Printf("    Name:   %s\n", extractSubdomain(app.Domain))
+	fmt.Printf("    Type:   A\n")
+	fmt.Printf("    Value:  <this server's IP>\n\n")
+	fmt.Printf("SSL activates automatically once DNS propagates.\n")
 }
 
 func checkCLIUpdate() {
@@ -243,6 +275,22 @@ func cmdUpdate() {
 
 	if err := m.Update(); err != nil {
 		fatal(err)
+	}
+}
+
+func cmdUpdateAll() {
+	checkCLIUpdate()
+
+	apps, err := matcha.ListApps()
+	if err != nil {
+		fatal(err)
+	}
+
+	for _, name := range matcha.ListAppsSorted(apps) {
+		m := matchaFromConfig(name)
+		if err := m.Update(); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to update %s: %v\n", name, err)
+		}
 	}
 }
 
@@ -317,14 +365,3 @@ func cmdLogs() {
 	}
 }
 
-func cmdMigrate() {
-	name := requireAppName("migrate")
-	m := matcha.New(matcha.Config{
-		Name:     name,
-		AppImage: "unknown", // will be read from old config
-	})
-	if err := m.Migrate(); err != nil {
-		fatal(err)
-	}
-	fmt.Printf("Migration complete. Deploy with: matcha deploy %s\n", name)
-}

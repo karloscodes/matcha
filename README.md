@@ -169,12 +169,12 @@ See `.goreleaser.yml` in this repo for an example config.
 | `matcha add <name> --image --domain [--port] [--volume] [--health-path] [--env KEY=VAL]` | Register a new app |
 | `matcha deploy <name>` | Pull image and deploy |
 | `matcha update <name>` | Pull latest image, zero-downtime redeploy |
+| `matcha update-all` | Update all registered apps |
 | `matcha list` | Show all apps |
 | `matcha status <name>` | Container details |
 | `matcha logs <name>` | Stream app logs |
 | `matcha exec <name> <cmd>` | Run command in container |
 | `matcha remove <name>` | Stop and unregister |
-| `matcha migrate <name>` | Migrate from old per-app layout |
 
 ## Config (library)
 
@@ -216,21 +216,7 @@ Matcha auto-generates these for each container:
 | `{NAME}_APP_PORT` | `MYAPP_APP_PORT=8080` |
 | `{NAME}_ENV` | `MYAPP_ENV=production` |
 
-A `PRIVATE_KEY` is generated on first install. Additional env vars can be set via `--env` flag or directly in `/etc/matcha/config.yml`.
-
-## Migration from old layouts
-
-If upgrading from the old per-app layout (`/etc/matcha/apps/{name}/` or `/opt/{name}/`):
-
-```bash
-# Auto-migrates on first update
-myapp update
-
-# Or explicitly
-matcha migrate myapp
-```
-
-Config and env vars are moved to `/etc/matcha/config.yml`, data to `/var/matcha/{name}/`.
+A `PRIVATE_KEY` is generated on first install — useful if your app needs a random secret key (e.g., for signing sessions or tokens). You can ignore it if your app doesn't need one. Additional env vars can be set via `--env` flag or directly in `/etc/matcha/config.yml`.
 
 ## License
 
