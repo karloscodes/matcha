@@ -14,7 +14,7 @@ type envData struct {
 	Domain     string
 	PrivateKey string
 	AppImage   string
-	CaddyImage string
+	ProxyImage string
 	// DNS status (not saved to .env, used for display)
 	dnsStatus *dnsStatus
 }
@@ -115,7 +115,7 @@ func (m *Matcha) setupConfig() error {
 	}
 
 	// Create subdirectories
-	for _, dir := range []string{"storage", "logs", "caddy", "caddy/config", "storage/backups"} {
+	for _, dir := range []string{"storage", "logs", "storage/backups"} {
 		if err := os.MkdirAll(m.config.InstallDir+"/"+dir, 0755); err != nil {
 			return fmt.Errorf("failed to create %s: %w", dir, err)
 		}
@@ -126,16 +126,11 @@ func (m *Matcha) setupConfig() error {
 		Domain:     m.domain,
 		PrivateKey: privateKey,
 		AppImage:   m.config.AppImage,
-		CaddyImage: m.config.CaddyImage,
+		ProxyImage: m.config.ProxyImage,
 	}
 
 	if err := m.saveEnv(data); err != nil {
 		return fmt.Errorf("failed to save config: %w", err)
-	}
-
-	// Generate Caddyfile
-	if err := m.generateCaddyfile(data); err != nil {
-		return fmt.Errorf("failed to generate Caddyfile: %w", err)
 	}
 
 	return nil
@@ -152,8 +147,8 @@ func (m *Matcha) loadConfig() error {
 	if data.AppImage != "" {
 		m.config.AppImage = data.AppImage
 	}
-	if data.CaddyImage != "" {
-		m.config.CaddyImage = data.CaddyImage
+	if data.ProxyImage != "" {
+		m.config.ProxyImage = data.ProxyImage
 	}
 	// Store domain for GetDomain()
 	m.domain = data.Domain
@@ -196,8 +191,8 @@ func (m *Matcha) readEnv() (*envData, error) {
 			data.PrivateKey = value
 		case prefix + "_APP_IMAGE", "APP_IMAGE":
 			data.AppImage = value
-		case "CADDY_IMAGE":
-			data.CaddyImage = value
+		case "PROXY_IMAGE":
+			data.ProxyImage = value
 		}
 	}
 
@@ -208,7 +203,7 @@ func (m *Matcha) readEnv() (*envData, error) {
 // These are values that need to persist and can change:
 // - DOMAIN: user's configured domain
 // - APP_IMAGE: current app image (changes on upgrade OSS->Pro)
-// - CADDY_IMAGE: current caddy image
+// - PROXY_IMAGE: current proxy image
 // - PRIVATE_KEY: app secret key
 func (m *Matcha) saveEnv(data *envData) error {
 	envPath := m.config.InstallDir + "/.env"
@@ -217,7 +212,7 @@ func (m *Matcha) saveEnv(data *envData) error {
 	var lines []string
 	lines = append(lines, fmt.Sprintf("%s_DOMAIN=%s", prefix, data.Domain))
 	lines = append(lines, fmt.Sprintf("APP_IMAGE=%s", data.AppImage))
-	lines = append(lines, fmt.Sprintf("CADDY_IMAGE=%s", data.CaddyImage))
+	lines = append(lines, fmt.Sprintf("PROXY_IMAGE=%s", data.ProxyImage))
 	lines = append(lines, fmt.Sprintf("%s_PRIVATE_KEY=%s", prefix, data.PrivateKey))
 
 	content := strings.Join(lines, "\n") + "\n"

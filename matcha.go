@@ -16,12 +16,11 @@ type Config struct {
 	// Optional with defaults
 	InstallDir string // default: /opt/{Name}
 	BinaryPath string // default: /usr/local/bin/{Name}
-	CaddyImage string // default: caddy:2-alpine
-	HealthPath string // default: /_health
+	ProxyImage string // default: basecamp/kamal-proxy:latest
+	HealthPath string // default: /up
 	AppPort    int    // default: 8080
 
 	// Feature flags
-	BlueGreen   bool // dual containers, zero-downtime switch
 	CronUpdates bool // daily 3 AM auto-update cron job
 	Backups     bool // SQLite backup with retention policy
 
@@ -49,11 +48,11 @@ func New(cfg Config) *Matcha {
 	if cfg.BinaryPath == "" {
 		cfg.BinaryPath = "/usr/local/bin/" + cfg.Name
 	}
-	if cfg.CaddyImage == "" {
-		cfg.CaddyImage = "caddy:2-alpine"
+	if cfg.ProxyImage == "" {
+		cfg.ProxyImage = "basecamp/kamal-proxy:latest"
 	}
 	if cfg.HealthPath == "" {
-		cfg.HealthPath = "/_health"
+		cfg.HealthPath = "/up"
 	}
 	if cfg.AppPort == 0 {
 		cfg.AppPort = 8080
@@ -74,16 +73,13 @@ func (m *Matcha) NetworkName() string {
 	return m.config.Name + "-network"
 }
 
-// CaddyContainerName returns the Caddy container name.
-func (m *Matcha) CaddyContainerName() string {
-	return m.config.Name + "-caddy"
+// ProxyContainerName returns the proxy container name.
+func (m *Matcha) ProxyContainerName() string {
+	return m.config.Name + "-proxy"
 }
 
-// AppContainerName returns the app container name(s).
-func (m *Matcha) AppContainerName(slot int) string {
-	if m.config.BlueGreen {
-		return fmt.Sprintf("%s-app-%d", m.config.Name, slot)
-	}
+// AppContainerName returns the app container name.
+func (m *Matcha) AppContainerName() string {
 	return m.config.Name + "-app"
 }
 
@@ -310,18 +306,7 @@ func (m *Matcha) GetDomain() (string, error) {
 
 // Exec runs a command inside the app container.
 func (m *Matcha) Exec(args ...string) error {
-	// Find the running app container
-	containerName := m.AppContainerName(0)
-	if m.config.BlueGreen {
-		// Find which slot is active
-		if m.isRunning(m.AppContainerName(1)) {
-			containerName = m.AppContainerName(1)
-		} else if m.isRunning(m.AppContainerName(2)) {
-			containerName = m.AppContainerName(2)
-		}
-	}
-
-	execArgs := append([]string{"exec", containerName}, args...)
+	execArgs := append([]string{"exec", m.AppContainerName()}, args...)
 	_, err := m.runDocker(execArgs...)
 	return err
 }
