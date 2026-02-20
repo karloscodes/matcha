@@ -11,10 +11,6 @@ func TestNew(t *testing.T) {
 			AppImage: "test/image:latest",
 		})
 
-		if m.config.InstallDir != "/opt/testapp" {
-			t.Errorf("InstallDir = %q, want /opt/testapp", m.config.InstallDir)
-		}
-
 		if m.config.BinaryPath != "/usr/local/bin/testapp" {
 			t.Errorf("BinaryPath = %q, want /usr/local/bin/testapp", m.config.BinaryPath)
 		}
@@ -36,14 +32,9 @@ func TestNew(t *testing.T) {
 		m := New(Config{
 			Name:       "testapp",
 			AppImage:   "test/image:latest",
-			InstallDir: "/custom/path",
 			HealthPath: "/healthz",
 			AppPort:    3000,
 		})
-
-		if m.config.InstallDir != "/custom/path" {
-			t.Errorf("InstallDir = %q, want /custom/path", m.config.InstallDir)
-		}
 
 		if m.config.HealthPath != "/healthz" {
 			t.Errorf("HealthPath = %q, want /healthz", m.config.HealthPath)
@@ -53,6 +44,16 @@ func TestNew(t *testing.T) {
 			t.Errorf("AppPort = %d, want 3000", m.config.AppPort)
 		}
 	})
+}
+
+func TestMatchaDataDir(t *testing.T) {
+	m := New(Config{Name: "fusionaly", AppImage: "test:latest"})
+
+	got := m.DataDir()
+
+	if got != "/var/matcha/fusionaly" {
+		t.Errorf("DataDir() = %q, want /var/matcha/fusionaly", got)
+	}
 }
 
 func TestEnvPrefix(t *testing.T) {
@@ -70,8 +71,8 @@ func TestNetworkName(t *testing.T) {
 
 	got := m.NetworkName()
 
-	if got != "fusionaly-network" {
-		t.Errorf("NetworkName() = %q, want fusionaly-network", got)
+	if got != "matcha-network" {
+		t.Errorf("NetworkName() = %q, want matcha-network", got)
 	}
 }
 
@@ -80,8 +81,8 @@ func TestProxyContainerName(t *testing.T) {
 
 	got := m.ProxyContainerName()
 
-	if got != "fusionaly-proxy" {
-		t.Errorf("ProxyContainerName() = %q, want fusionaly-proxy", got)
+	if got != "matcha-proxy" {
+		t.Errorf("ProxyContainerName() = %q, want matcha-proxy", got)
 	}
 }
 
@@ -90,8 +91,8 @@ func TestAppContainerName(t *testing.T) {
 
 	got := m.AppContainerName()
 
-	if got != "fusionaly-app" {
-		t.Errorf("AppContainerName() = %q, want fusionaly-app", got)
+	if got != "fusionaly" {
+		t.Errorf("AppContainerName() = %q, want fusionaly", got)
 	}
 }
 

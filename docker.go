@@ -3,6 +3,7 @@ package matcha
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -81,7 +82,7 @@ func (m *Matcha) pullImages() error {
 
 // isRunning checks if a container is running.
 func (m *Matcha) isRunning(name string) bool {
-	out, err := m.runDocker("ps", "-q", "-f", "name="+name)
+	out, err := m.runDocker("ps", "-q", "--filter", "name=^"+name+"$")
 	return err == nil && strings.TrimSpace(out) != ""
 }
 
@@ -93,24 +94,41 @@ func (m *Matcha) stopAndRemove(name string) error {
 }
 
 // deployApp deploys an app container.
-func (m *Matcha) deployApp(name string, data *envData) error {
+func (m *Matcha) deployApp(name string) error {
 	m.stopAndRemove(name)
 
-	prefix := m.EnvPrefix()
 	args := []string{
 		"run", "-d",
 		"--name", name,
 		"--network", m.NetworkName(),
-		"-v", m.config.InstallDir + "/storage:/app/storage",
-		"-v", m.config.InstallDir + "/logs:/app/logs",
-		"-e", fmt.Sprintf("%s_DOMAIN=%s", prefix, data.Domain),
-		"-e", fmt.Sprintf("%s_PRIVATE_KEY=%s", prefix, data.PrivateKey),
+	}
+
+	// Mount volumes from config (resolved from container paths)
+	for _, v := range m.resolveVolumes(m.config.Volumes) {
+		hostPath := strings.SplitN(v, ":", 2)[0]
+		os.MkdirAll(hostPath, 0755)
+		args = append(args, "-v", v)
+	}
+
+	// Load env vars from YAML config
+	app, _ := LoadAppFrom(m.configPath(), m.config.Name)
+	for k, v := range app.Env {
+		args = append(args, "-e", k+"="+v)
+	}
+
+	// Auto-generated env vars
+	prefix := m.EnvPrefix()
+	args = append(args,
+		"-e", fmt.Sprintf("%s_DOMAIN=%s", prefix, m.domain),
 		"-e", fmt.Sprintf("%s_APP_PORT=%d", prefix, m.config.AppPort),
 		"-e", fmt.Sprintf("%s_ENV=production", prefix),
+	)
+
+	args = append(args,
 		"--memory=512m",
 		"--restart", "unless-stopped",
 		m.config.AppImage,
-	}
+	)
 
 	_, err := m.runDocker(args...)
 	return err
@@ -121,6 +139,12 @@ func (m *Matcha) deployProxy() error {
 	name := m.ProxyContainerName()
 	m.stopAndRemove(name)
 
+	proxyDataDir := "/var/matcha/proxy"
+	if m.config.DataDirBase != "" {
+		proxyDataDir = m.config.DataDirBase + "/proxy"
+	}
+	os.MkdirAll(proxyDataDir, 0755)
+
 	args := []string{
 		"run", "-d",
 		"--name", name,
@@ -128,7 +152,7 @@ func (m *Matcha) deployProxy() error {
 		"-p", "80:80",
 		"-p", "443:443",
 		"-p", "443:443/udp",
-		"-v", m.config.InstallDir + "/kamal-proxy-data:/home/kamal-proxy/.config/kamal-proxy",
+		"-v", proxyDataDir + ":/home/kamal-proxy/.config/kamal-proxy",
 		"--memory=128m",
 		"--restart", "unless-stopped",
 		m.config.ProxyImage,
@@ -136,6 +160,11 @@ func (m *Matcha) deployProxy() error {
 
 	_, err := m.runDocker(args...)
 	return err
+}
+
+// StopApp stops and removes the app container.
+func (m *Matcha) StopApp() error {
+	return m.stopAndRemove(m.AppContainerName())
 }
 
 // pruneImages removes unused images.

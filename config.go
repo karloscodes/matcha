@@ -9,16 +9,6 @@ import (
 	"strings"
 )
 
-// envData holds the environment configuration.
-type envData struct {
-	Domain     string
-	PrivateKey string
-	AppImage   string
-	ProxyImage string
-	// DNS status (not saved to .env, used for display)
-	dnsStatus *dnsStatus
-}
-
 // collectConfig prompts the user for configuration with DNS check and confirmation.
 func (m *Matcha) collectConfig() error {
 	reader := bufio.NewReader(os.Stdin)
@@ -101,122 +91,110 @@ func (m *Matcha) collectConfig() error {
 	}
 }
 
-// setupConfig creates directories and saves configuration after user confirms.
+// setupConfig saves configuration to YAML config after user confirms.
 func (m *Matcha) setupConfig() error {
-	// Generate private key
-	privateKey, err := generatePrivateKey()
+	privateKey, err := GeneratePrivateKey()
 	if err != nil {
 		return fmt.Errorf("failed to generate private key: %w", err)
 	}
 
-	// Create install directory
-	if err := os.MkdirAll(m.config.InstallDir, 0755); err != nil {
-		return fmt.Errorf("failed to create install dir: failed to create directory: %w", err)
-	}
-
-	// Create subdirectories
-	for _, dir := range []string{"storage", "logs", "storage/backups"} {
-		if err := os.MkdirAll(m.config.InstallDir+"/"+dir, 0755); err != nil {
-			return fmt.Errorf("failed to create %s: %w", dir, err)
-		}
-	}
-
-	// Save config
-	data := &envData{
+	app := AppConfig{
+		Image:      m.config.AppImage,
 		Domain:     m.domain,
-		PrivateKey: privateKey,
-		AppImage:   m.config.AppImage,
-		ProxyImage: m.config.ProxyImage,
+		Port:       m.config.AppPort,
+		HealthPath: m.config.HealthPath,
+		Volumes:    m.config.Volumes,
+		Env: map[string]string{
+			"PRIVATE_KEY": privateKey,
+		},
 	}
 
-	if err := m.saveEnv(data); err != nil {
-		return fmt.Errorf("failed to save config: %w", err)
+	if err := SaveAppTo(m.configPath(), m.config.Name, app); err != nil {
+		return fmt.Errorf("failed to save app config: %w", err)
+	}
+
+	// Create data directories for volumes
+	for _, v := range m.resolveVolumes(m.config.Volumes) {
+		hostPath := strings.SplitN(v, ":", 2)[0]
+		if err := os.MkdirAll(hostPath, 0755); err != nil {
+			return fmt.Errorf("failed to create volume dir %s: %w", hostPath, err)
+		}
 	}
 
 	return nil
 }
 
-// loadConfig loads existing configuration from .env.
+// loadConfig loads existing configuration from YAML config.
+// If the app isn't in YAML yet but an old layout exists, auto-migrates first.
 func (m *Matcha) loadConfig() error {
-	data, err := m.readEnv()
+	app, err := LoadAppFrom(m.configPath(), m.config.Name)
 	if err != nil {
-		return fmt.Errorf("failed to read .env: %w", err)
+		// App not in YAML — try auto-migration from old layouts
+		if migrated := m.tryAutoMigrate(); migrated {
+			// Retry loading from YAML after migration
+			app, err = LoadAppFrom(m.configPath(), m.config.Name)
+			if err != nil {
+				return fmt.Errorf("failed to load config after migration: %w", err)
+			}
+		} else {
+			return fmt.Errorf("app %q not found in config", m.config.Name)
+		}
 	}
 
-	// Override config with values from .env
-	if data.AppImage != "" {
-		m.config.AppImage = data.AppImage
+	if app.Image != "" {
+		m.config.AppImage = app.Image
 	}
-	if data.ProxyImage != "" {
-		m.config.ProxyImage = data.ProxyImage
+	if app.Domain != "" {
+		m.domain = app.Domain
 	}
-	// Store domain for GetDomain()
-	m.domain = data.Domain
-
+	if app.Port != 0 {
+		m.config.AppPort = app.Port
+	}
+	if app.HealthPath != "" {
+		m.config.HealthPath = app.HealthPath
+	}
+	m.config.Volumes = app.Volumes
 	return nil
 }
 
-// readEnv reads the .env file and returns envData.
-func (m *Matcha) readEnv() (*envData, error) {
-	envPath := m.config.InstallDir + "/.env"
-	prefix := m.EnvPrefix()
-
-	data := &envData{}
-
-	file, err := os.Open(envPath)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
+// tryAutoMigrate attempts to migrate from old layouts to YAML config.
+// Returns true if migration was performed.
+func (m *Matcha) tryAutoMigrate() bool {
+	// Try multi-app layout: /etc/matcha/apps/{name}/app.json
+	multiAppDir := "/etc/matcha/apps/" + m.config.Name
+	if _, err := os.Stat(multiAppDir + "/app.json"); err == nil {
+		fmt.Printf("Auto-migrating %s from %s to YAML config\n", m.config.Name, multiAppDir)
+		if err := m.migrateFromMultiApp(multiAppDir); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: auto-migration failed: %v\n", err)
+			return false
 		}
-
-		parts := strings.SplitN(line, "=", 2)
-		if len(parts) != 2 {
-			continue
-		}
-
-		key := strings.TrimSpace(parts[0])
-		value := strings.TrimSpace(parts[1])
-
-		switch key {
-		case prefix + "_DOMAIN":
-			data.Domain = value
-		case prefix + "_PRIVATE_KEY":
-			data.PrivateKey = value
-		case prefix + "_APP_IMAGE", "APP_IMAGE":
-			data.AppImage = value
-		case "PROXY_IMAGE":
-			data.ProxyImage = value
-		}
+		return true
 	}
 
-	return data, scanner.Err()
+	// Try legacy layout: /opt/{name}/.env
+	oldDir := "/opt/" + m.config.Name
+	if _, err := os.Stat(oldDir + "/.env"); err == nil {
+		fmt.Printf("Auto-migrating %s from %s to YAML config\n", m.config.Name, oldDir)
+		if err := m.migrateFromLegacy(oldDir); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: auto-migration failed: %v\n", err)
+			return false
+		}
+		return true
+	}
+
+	return false
 }
 
-// saveEnv writes the .env file with only essential fields.
-// These are values that need to persist and can change:
-// - DOMAIN: user's configured domain
-// - APP_IMAGE: current app image (changes on upgrade OSS->Pro)
-// - PROXY_IMAGE: current proxy image
-// - PRIVATE_KEY: app secret key
-func (m *Matcha) saveEnv(data *envData) error {
-	envPath := m.config.InstallDir + "/.env"
-	prefix := m.EnvPrefix()
-
-	var lines []string
-	lines = append(lines, fmt.Sprintf("%s_DOMAIN=%s", prefix, data.Domain))
-	lines = append(lines, fmt.Sprintf("APP_IMAGE=%s", data.AppImage))
-	lines = append(lines, fmt.Sprintf("PROXY_IMAGE=%s", data.ProxyImage))
-	lines = append(lines, fmt.Sprintf("%s_PRIVATE_KEY=%s", prefix, data.PrivateKey))
-
-	content := strings.Join(lines, "\n") + "\n"
-	return os.WriteFile(envPath, []byte(content), 0600)
+// readPrivateKey reads the private key from YAML config.
+func (m *Matcha) readPrivateKey() string {
+	app, err := LoadAppFrom(m.configPath(), m.config.Name)
+	if err != nil {
+		return ""
+	}
+	if v, ok := app.Env["PRIVATE_KEY"]; ok {
+		return v
+	}
+	return ""
 }
 
 // validateDomain performs basic domain validation.
@@ -233,8 +211,8 @@ func (m *Matcha) validateDomain(domain string) error {
 	return nil
 }
 
-// generatePrivateKey creates a secure random key.
-func generatePrivateKey() (string, error) {
+// GeneratePrivateKey creates a secure random key.
+func GeneratePrivateKey() (string, error) {
 	key := make([]byte, 32)
 	if _, err := rand.Read(key); err != nil {
 		return "", err

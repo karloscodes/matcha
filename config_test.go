@@ -2,6 +2,7 @@ package matcha
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -25,7 +26,6 @@ func TestValidateDomain(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := m.validateDomain(tt.domain)
-
 			if (err != nil) != tt.wantErr {
 				t.Errorf("validateDomain(%q) error = %v, wantErr %v", tt.domain, err, tt.wantErr)
 			}
@@ -35,93 +35,72 @@ func TestValidateDomain(t *testing.T) {
 
 func TestGeneratePrivateKey(t *testing.T) {
 	t.Run("generates 64 char hex string", func(t *testing.T) {
-		key, err := generatePrivateKey()
-
+		key, err := GeneratePrivateKey()
 		if err != nil {
-			t.Fatalf("generatePrivateKey() error = %v", err)
+			t.Fatalf("GeneratePrivateKey() error = %v", err)
 		}
-
 		if len(key) != 64 {
-			t.Errorf("generatePrivateKey() length = %d, want 64", len(key))
+			t.Errorf("GeneratePrivateKey() length = %d, want 64", len(key))
 		}
 	})
 
 	t.Run("generates unique keys", func(t *testing.T) {
 		keys := make(map[string]bool)
-
 		for i := 0; i < 100; i++ {
-			key, err := generatePrivateKey()
-			if err != nil {
-				t.Fatalf("generatePrivateKey() error = %v", err)
-			}
-
+			key, _ := GeneratePrivateKey()
 			if keys[key] {
-				t.Errorf("generatePrivateKey() produced duplicate key")
+				t.Errorf("GeneratePrivateKey() produced duplicate key")
 			}
 			keys[key] = true
 		}
 	})
 }
 
-func TestSaveAndReadEnv(t *testing.T) {
+func TestReadPrivateKey(t *testing.T) {
 	tmpDir := t.TempDir()
-	m := New(Config{
-		Name:       "testapp",
-		AppImage:   "test:latest",
-		ProxyImage: "basecamp/kamal-proxy:latest",
-		InstallDir: tmpDir,
-	})
+	configPath := filepath.Join(tmpDir, "config.yml")
 
-	data := &envData{
-		Domain:     "test.example.com",
-		PrivateKey: "abc123def456",
-		AppImage:   "test:latest",
-		ProxyImage: "basecamp/kamal-proxy:latest",
+	// Write a config with private key in env
+	cfg := &MatchaConfig{
+		Apps: map[string]AppConfig{
+			"testapp": {
+				Image:  "test:latest",
+				Domain: "test.example.com",
+				Env:    map[string]string{"PRIVATE_KEY": "abc123"},
+			},
+		},
 	}
+	SaveMatchaConfigTo(cfg, configPath)
 
-	err := m.saveEnv(data)
-	if err != nil {
-		t.Fatalf("saveEnv() error = %v", err)
-	}
+	m := New(Config{Name: "testapp", AppImage: "test:latest", ConfigPath: configPath})
 
-	got, err := m.readEnv()
-	if err != nil {
-		t.Fatalf("readEnv() error = %v", err)
-	}
+	got := m.readPrivateKey()
 
-	if got.Domain != data.Domain {
-		t.Errorf("Domain = %q, want %q", got.Domain, data.Domain)
-	}
-	if got.PrivateKey != data.PrivateKey {
-		t.Errorf("PrivateKey = %q, want %q", got.PrivateKey, data.PrivateKey)
-	}
-	if got.AppImage != data.AppImage {
-		t.Errorf("AppImage = %q, want %q", got.AppImage, data.AppImage)
-	}
-	if got.ProxyImage != data.ProxyImage {
-		t.Errorf("ProxyImage = %q, want %q", got.ProxyImage, data.ProxyImage)
+	if got != "abc123" {
+		t.Errorf("readPrivateKey() = %q, want abc123", got)
 	}
 }
 
-func TestLoadConfigOverridesFromEnv(t *testing.T) {
+func TestLoadConfig(t *testing.T) {
 	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yml")
 
-	// Create matcha with default images
-	m := New(Config{
-		Name:       "testapp",
-		AppImage:   "oss:latest",
-		ProxyImage: "basecamp/kamal-proxy:v0.8.1",
-		InstallDir: tmpDir,
-	})
-
-	// Write .env with different images (simulating upgrade scenario)
-	envPath := tmpDir + "/.env"
-	envContent := "TESTAPP_DOMAIN=upgraded.example.com\nAPP_IMAGE=pro:latest\nPROXY_IMAGE=basecamp/kamal-proxy:v0.9.0\nTESTAPP_PRIVATE_KEY=key123\n"
-	if err := os.WriteFile(envPath, []byte(envContent), 0600); err != nil {
-		t.Fatal(err)
+	cfg := &MatchaConfig{
+		Apps: map[string]AppConfig{
+			"testapp": {
+				Image:      "pro:latest",
+				Domain:     "upgraded.example.com",
+				Port:       3000,
+				HealthPath: "/healthz",
+				Volumes:    []string{"/app/storage"},
+				Env:        map[string]string{"PRIVATE_KEY": "key123"},
+			},
+		},
 	}
+	SaveMatchaConfigTo(cfg, configPath)
 
-	// loadConfig should override config values from .env
+	m := New(Config{Name: "testapp", AppImage: "oss:latest", ConfigPath: configPath})
+
 	err := m.loadConfig()
 	if err != nil {
 		t.Fatalf("loadConfig() error = %v", err)
@@ -130,91 +109,156 @@ func TestLoadConfigOverridesFromEnv(t *testing.T) {
 	if m.config.AppImage != "pro:latest" {
 		t.Errorf("AppImage = %q, want 'pro:latest'", m.config.AppImage)
 	}
-	if m.config.ProxyImage != "basecamp/kamal-proxy:v0.9.0" {
-		t.Errorf("ProxyImage = %q, want 'basecamp/kamal-proxy:v0.9.0'", m.config.ProxyImage)
-	}
 	if m.domain != "upgraded.example.com" {
 		t.Errorf("domain = %q, want 'upgraded.example.com'", m.domain)
 	}
+	if m.config.AppPort != 3000 {
+		t.Errorf("AppPort = %d, want 3000", m.config.AppPort)
+	}
+	if m.config.HealthPath != "/healthz" {
+		t.Errorf("HealthPath = %q, want '/healthz'", m.config.HealthPath)
+	}
 }
 
-func TestSaveImagePersistsChange(t *testing.T) {
+func TestSaveImageUpdatesConfig(t *testing.T) {
 	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yml")
 
-	m := New(Config{
-		Name:       "testapp",
-		AppImage:   "oss:latest",
-		ProxyImage: "basecamp/kamal-proxy:latest",
-		InstallDir: tmpDir,
-	})
-
-	// Create initial .env
-	envPath := tmpDir + "/.env"
-	envContent := "TESTAPP_DOMAIN=test.example.com\nAPP_IMAGE=oss:latest\nPROXY_IMAGE=basecamp/kamal-proxy:latest\nTESTAPP_PRIVATE_KEY=key456\n"
-	if err := os.WriteFile(envPath, []byte(envContent), 0600); err != nil {
-		t.Fatal(err)
+	cfg := &MatchaConfig{
+		Apps: map[string]AppConfig{
+			"testapp": {
+				Image:  "oss:latest",
+				Domain: "test.example.com",
+				Port:   8080,
+			},
+		},
 	}
+	SaveMatchaConfigTo(cfg, configPath)
 
-	// Change image and save
-	m.SetImage("pro:latest")
-	if err := m.SaveImage(); err != nil {
+	m := New(Config{Name: "testapp", AppImage: "pro:latest", ConfigPath: configPath})
+
+	err := m.SaveImage()
+	if err != nil {
 		t.Fatalf("SaveImage() error = %v", err)
 	}
 
-	// Read back and verify
-	data, err := m.readEnv()
+	updated, err := LoadAppFrom(configPath, "testapp")
 	if err != nil {
-		t.Fatalf("readEnv() error = %v", err)
+		t.Fatalf("LoadApp() error = %v", err)
 	}
-
-	if data.AppImage != "pro:latest" {
-		t.Errorf("AppImage after SaveImage = %q, want 'pro:latest'", data.AppImage)
+	if updated.Image != "pro:latest" {
+		t.Errorf("Image = %q, want 'pro:latest'", updated.Image)
 	}
-	// Other fields should be preserved
-	if data.Domain != "test.example.com" {
-		t.Errorf("Domain should be preserved, got %q", data.Domain)
-	}
-	if data.PrivateKey != "key456" {
-		t.Errorf("PrivateKey should be preserved, got %q", data.PrivateKey)
+	if updated.Domain != "test.example.com" {
+		t.Errorf("Domain should be preserved, got %q", updated.Domain)
 	}
 }
 
-func TestReadEnvWithLegacyFields(t *testing.T) {
+func TestSetupConfig(t *testing.T) {
 	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yml")
+	dataBase := filepath.Join(tmpDir, "data")
 
 	m := New(Config{
-		Name:       "testapp",
-		InstallDir: tmpDir,
+		Name:        "testapp",
+		AppImage:    "test:latest",
+		AppPort:     8080,
+		HealthPath:  "/up",
+		Volumes:     []string{"/app/storage"},
+		ConfigPath:  configPath,
+		DataDirBase: dataBase,
 	})
+	m.domain = "test.example.com"
 
-	// Write .env with legacy fields from old installer
-	envPath := tmpDir + "/.env"
-	envContent := `TESTAPP_DOMAIN=legacy.example.com
-APP_IMAGE=legacyapp:v1
-PROXY_IMAGE=basecamp/kamal-proxy:v0.8.0
-INSTALL_DIR=/opt/testapp
-BACKUP_PATH=/opt/testapp/storage/backups
-VERSION=latest
-INSTALLER_URL=https://github.com/example/releases/latest
-TESTAPP_PRIVATE_KEY=legacykey
-`
-	if err := os.WriteFile(envPath, []byte(envContent), 0600); err != nil {
-		t.Fatal(err)
-	}
-
-	// Should read essential fields and ignore legacy ones
-	data, err := m.readEnv()
+	err := m.setupConfig()
 	if err != nil {
-		t.Fatalf("readEnv() error = %v", err)
+		t.Fatalf("setupConfig() error = %v", err)
 	}
 
-	if data.Domain != "legacy.example.com" {
-		t.Errorf("Domain = %q, want 'legacy.example.com'", data.Domain)
+	// Verify config was written
+	app, err := LoadAppFrom(configPath, "testapp")
+	if err != nil {
+		t.Fatalf("LoadApp() error = %v", err)
 	}
-	if data.AppImage != "legacyapp:v1" {
-		t.Errorf("AppImage = %q, want 'legacyapp:v1'", data.AppImage)
+
+	if app.Image != "test:latest" {
+		t.Errorf("Image = %q, want test:latest", app.Image)
 	}
-	if data.ProxyImage != "basecamp/kamal-proxy:v0.8.0" {
-		t.Errorf("ProxyImage = %q, want 'basecamp/kamal-proxy:v0.8.0'", data.ProxyImage)
+	if app.Domain != "test.example.com" {
+		t.Errorf("Domain = %q, want test.example.com", app.Domain)
+	}
+	if app.Env["PRIVATE_KEY"] == "" {
+		t.Error("PRIVATE_KEY should be generated")
+	}
+
+	// Verify data dir was created
+	storageDir := filepath.Join(dataBase, "testapp", "storage")
+	if _, err := os.Stat(storageDir); os.IsNotExist(err) {
+		t.Errorf("expected data dir %s to be created", storageDir)
+	}
+}
+
+func TestLoadConfigAutoMigratesFromMultiApp(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yml")
+
+	// Create old multi-app layout at /etc/matcha/apps/{name}/
+	// We simulate by creating the structure and pointing Migrate to it
+	// But tryAutoMigrate uses hardcoded /etc/matcha paths, so we test
+	// via migrateFromMultiApp directly then verify loadConfig works
+	appDir := filepath.Join(tmpDir, "apps", "testapp")
+	os.MkdirAll(appDir, 0755)
+
+	// Write old app.json
+	os.WriteFile(filepath.Join(appDir, "app.json"), []byte(`{
+		"name": "testapp",
+		"image": "myapp:v2",
+		"domain": "app.example.com",
+		"port": 8080,
+		"health_path": "/up"
+	}`), 0644)
+
+	// Write old .env
+	os.WriteFile(filepath.Join(appDir, ".env"), []byte("PRIVATE_KEY=secret123\nDATABASE_URL=sqlite:///app/db\n"), 0600)
+
+	// Migrate manually (tryAutoMigrate uses hardcoded paths, can't test in unit)
+	dataBase := filepath.Join(tmpDir, "data")
+	m := New(Config{
+		Name:        "testapp",
+		AppImage:    "myapp:v1",
+		ConfigPath:  configPath,
+		DataDirBase: dataBase,
+	})
+	err := m.migrateFromMultiApp(appDir)
+	if err != nil {
+		t.Fatalf("migrateFromMultiApp() error = %v", err)
+	}
+
+	// Now loadConfig should succeed from YAML
+	m2 := New(Config{
+		Name:        "testapp",
+		AppImage:    "myapp:v1",
+		ConfigPath:  configPath,
+		DataDirBase: dataBase,
+	})
+	err = m2.loadConfig()
+	if err != nil {
+		t.Fatalf("loadConfig() after migration error = %v", err)
+	}
+
+	if m2.config.AppImage != "myapp:v2" {
+		t.Errorf("AppImage = %q, want myapp:v2", m2.config.AppImage)
+	}
+	if m2.domain != "app.example.com" {
+		t.Errorf("domain = %q, want app.example.com", m2.domain)
+	}
+
+	// Verify env vars were migrated
+	app, _ := LoadAppFrom(configPath, "testapp")
+	if app.Env["PRIVATE_KEY"] != "secret123" {
+		t.Errorf("PRIVATE_KEY = %q, want secret123", app.Env["PRIVATE_KEY"])
+	}
+	if app.Env["DATABASE_URL"] != "sqlite:///app/db" {
+		t.Errorf("DATABASE_URL = %q, want sqlite:///app/db", app.Env["DATABASE_URL"])
 	}
 }

@@ -13,7 +13,12 @@ func (m *Matcha) proxyDeployArgs(domain string) []string {
 		"--target", target,
 	}
 
-	if !isLocalhost(domain) {
+	if domain == "localhost" {
+		// Bare localhost: skip --host (catches all requests) and --tls
+	} else if isLocalhost(domain) {
+		// Localhost subdomains (e.g., app.localhost): set --host for routing, skip --tls
+		args = append(args, "--host", domain)
+	} else {
 		args = append(args, "--host", domain, "--tls")
 	}
 
@@ -32,8 +37,8 @@ func (m *Matcha) deployToProxy(domain string) error {
 	return nil
 }
 
-// removeFromProxy removes the service from kamal-proxy.
-func (m *Matcha) removeFromProxy() error {
+// RemoveFromProxy removes the service from kamal-proxy.
+func (m *Matcha) RemoveFromProxy() error {
 	proxyContainer := m.ProxyContainerName()
 	_, err := m.runDocker("exec", proxyContainer, "kamal-proxy", "remove", m.config.Name)
 	return err
