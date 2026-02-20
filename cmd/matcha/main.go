@@ -10,7 +10,7 @@ import (
 	"github.com/karloscodes/matcha"
 )
 
-var version = "dev"
+var version = "0.12.0"
 
 func main() {
 	if len(os.Args) < 2 {
