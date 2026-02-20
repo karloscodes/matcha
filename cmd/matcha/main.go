@@ -37,10 +37,6 @@ func main() {
 		cmdExec()
 	case "logs":
 		cmdLogs()
-	case "backup":
-		cmdBackup()
-	case "restore":
-		cmdRestore()
 	case "migrate":
 		cmdMigrate()
 	case "version":
@@ -65,9 +61,7 @@ Commands:
   remove (rm) <name> Remove an app
   exec <name> <cmd>  Run a command in the app container
   logs <name>        Stream app logs
-  backup <name>      Back up the app database
-  restore <name>     Restore the app database
-  migrate <name>     Migrate from old per-app layout to shared layout
+  migrate <name>     Migrate from old layout to YAML config
   version            Print version`)
 }
 
@@ -83,18 +77,16 @@ func requireAppName(cmd string) string {
 	return os.Args[2]
 }
 
-func matchaFromRegistry(name string) *matcha.Matcha {
-	reg := matcha.DefaultRegistry()
-	app, err := reg.Load(name)
+func matchaFromConfig(name string) *matcha.Matcha {
+	app, err := matcha.LoadApp(name)
 	if err != nil {
 		fatal(fmt.Errorf("app %q not found. Run 'matcha list' to see registered apps", name))
 	}
 	return matcha.New(matcha.Config{
-		Name:       app.Name,
+		Name:       name,
 		AppImage:   app.Image,
 		AppPort:    app.Port,
 		HealthPath: app.HealthPath,
-		Backups:    app.Backups,
 		Volumes:    app.Volumes,
 	})
 }
@@ -114,8 +106,8 @@ func cmdAdd() {
 
 	var image, domain, healthPath string
 	port := 8080
-	backups := false
 	var volumes []string
+	env := make(map[string]string)
 
 	args := os.Args[3:]
 	for i := 0; i < len(args); i++ {
@@ -154,8 +146,16 @@ func cmdAdd() {
 				fatal(fmt.Errorf("--volume requires a value"))
 			}
 			volumes = append(volumes, args[i])
-		case "--backups":
-			backups = true
+		case "--env":
+			i++
+			if i >= len(args) {
+				fatal(fmt.Errorf("--env requires KEY=VALUE"))
+			}
+			parts := strings.SplitN(args[i], "=", 2)
+			if len(parts) != 2 {
+				fatal(fmt.Errorf("--env value must be KEY=VALUE"))
+			}
+			env[parts[0]] = parts[1]
 		default:
 			fatal(fmt.Errorf("unknown flag: %s", args[i]))
 		}
@@ -171,30 +171,32 @@ func cmdAdd() {
 		healthPath = "/up"
 	}
 
-	reg := matcha.DefaultRegistry()
-	app := matcha.AppEntry{
-		Name:       name,
+	// Generate private key
+	privateKey, err := matcha.GeneratePrivateKey()
+	if err != nil {
+		fatal(fmt.Errorf("failed to generate private key: %w", err))
+	}
+	env["PRIVATE_KEY"] = privateKey
+
+	app := matcha.AppConfig{
 		Image:      image,
 		Domain:     domain,
 		Port:       port,
 		HealthPath: healthPath,
 		Volumes:    volumes,
-		Backups:    backups,
+		Env:        env,
 	}
 
-	if err := reg.Save(app); err != nil {
-		fatal(fmt.Errorf("failed to register app: %w", err))
+	if err := matcha.SaveApp(name, app); err != nil {
+		fatal(fmt.Errorf("failed to save app config: %w", err))
 	}
 
-	// Generate private key and write .env (secrets only)
-	privateKey, err := matcha.GeneratePrivateKey()
-	if err != nil {
-		fatal(fmt.Errorf("failed to generate private key: %w", err))
-	}
-
-	envPath := reg.EnvPath(name)
-	if err := os.WriteFile(envPath, []byte("PRIVATE_KEY="+privateKey+"\n"), 0600); err != nil {
-		fatal(fmt.Errorf("failed to write .env: %w", err))
+	// Create data directories for volumes
+	for _, v := range matcha.ResolveVolumes(name, volumes) {
+		hostPath := strings.SplitN(v, ":", 2)[0]
+		if err := os.MkdirAll(hostPath, 0755); err != nil {
+			fatal(fmt.Errorf("failed to create volume dir: %w", err))
+		}
 	}
 
 	fmt.Printf("App %q registered.\n", name)
@@ -205,13 +207,12 @@ func cmdAdd() {
 		fmt.Printf("  Volumes: %s\n", strings.Join(volumes, ", "))
 	}
 	fmt.Println()
-	fmt.Printf("Edit env vars:  %s\n", envPath)
-	fmt.Printf("Then deploy:    matcha deploy %s\n", name)
+	fmt.Printf("Deploy with: matcha deploy %s\n", name)
 }
 
 func cmdDeploy() {
 	name := requireAppName("deploy")
-	m := matchaFromRegistry(name)
+	m := matchaFromConfig(name)
 
 	if err := m.Deploy(); err != nil {
 		fatal(err)
@@ -221,7 +222,7 @@ func cmdDeploy() {
 
 func cmdUpdate() {
 	name := requireAppName("update")
-	m := matchaFromRegistry(name)
+	m := matchaFromConfig(name)
 
 	if err := m.Update(); err != nil {
 		fatal(err)
@@ -229,8 +230,7 @@ func cmdUpdate() {
 }
 
 func cmdList() {
-	reg := matcha.DefaultRegistry()
-	apps, err := reg.List()
+	apps, err := matcha.ListApps()
 	if err != nil {
 		fatal(err)
 	}
@@ -242,15 +242,16 @@ func cmdList() {
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(w, "NAME\tIMAGE\tDOMAIN\tPORT")
-	for _, app := range apps {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%d\n", app.Name, app.Image, app.Domain, app.Port)
+	for _, name := range matcha.ListAppsSorted(apps) {
+		app := apps[name]
+		fmt.Fprintf(w, "%s\t%s\t%s\t%d\n", name, app.Image, app.Domain, app.Port)
 	}
 	w.Flush()
 }
 
 func cmdStatus() {
 	name := requireAppName("status")
-	m := matchaFromRegistry(name)
+	m := matchaFromConfig(name)
 
 	if err := m.Status(); err != nil {
 		fatal(err)
@@ -259,11 +260,10 @@ func cmdStatus() {
 
 func cmdRemove() {
 	name := requireAppName("remove")
-	m := matchaFromRegistry(name)
+	m := matchaFromConfig(name)
 
-	// Remove from proxy first, then stop container, then clean up registry
+	// Remove from proxy first, then stop container, then clean up config
 	if err := m.RemoveFromProxy(); err != nil {
-		// Not fatal — proxy might not have it registered
 		fmt.Fprintf(os.Stderr, "Warning: could not remove from proxy: %v\n", err)
 	}
 
@@ -271,12 +271,12 @@ func cmdRemove() {
 		fmt.Fprintf(os.Stderr, "Warning: could not stop app: %v\n", err)
 	}
 
-	reg := matcha.DefaultRegistry()
-	if err := reg.Remove(name); err != nil {
+	if err := matcha.RemoveApp(name); err != nil {
 		fatal(err)
 	}
 
 	fmt.Printf("App %q removed.\n", name)
+	fmt.Printf("Note: Data directory %s was not removed. Delete manually if no longer needed.\n", matcha.DataDir(name))
 }
 
 func cmdExec() {
@@ -284,7 +284,7 @@ func cmdExec() {
 	if len(os.Args) < 4 {
 		fatal(fmt.Errorf("exec requires a command. Usage: matcha exec <name> <cmd...>"))
 	}
-	m := matchaFromRegistry(name)
+	m := matchaFromConfig(name)
 
 	if err := m.Exec(os.Args[3:]...); err != nil {
 		fatal(err)
@@ -293,29 +293,9 @@ func cmdExec() {
 
 func cmdLogs() {
 	name := requireAppName("logs")
-	m := matchaFromRegistry(name)
+	m := matchaFromConfig(name)
 
 	if err := m.Logs(); err != nil {
-		fatal(err)
-	}
-}
-
-func cmdBackup() {
-	name := requireAppName("backup")
-	m := matchaFromRegistry(name)
-
-	path, err := m.BackupDB()
-	if err != nil {
-		fatal(err)
-	}
-	fmt.Printf("Backup created: %s\n", path)
-}
-
-func cmdRestore() {
-	name := requireAppName("restore")
-	m := matchaFromRegistry(name)
-
-	if err := m.RestoreDB(); err != nil {
 		fatal(err)
 	}
 }
@@ -324,7 +304,7 @@ func cmdMigrate() {
 	name := requireAppName("migrate")
 	m := matcha.New(matcha.Config{
 		Name:     name,
-		AppImage: "unknown", // will be read from old .env
+		AppImage: "unknown", // will be read from old config
 	})
 	if err := m.Migrate(); err != nil {
 		fatal(err)

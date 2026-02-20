@@ -1,6 +1,8 @@
 package matcha
 
 import (
+	"bufio"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -8,31 +10,109 @@ import (
 	"strings"
 )
 
-// detectOldInstall checks if there's an old-style install at /opt/{name}.
-func (m *Matcha) detectOldInstall() bool {
-	oldDir := "/opt/" + m.config.Name
-	_, err := os.Stat(filepath.Join(oldDir, ".env"))
-	return err == nil
-}
+// readEnvFile reads a .env file into a map (kept for migration).
+func readEnvFile(path string) (map[string]string, error) {
+	vars := make(map[string]string)
 
-// Migrate moves from old per-app layout (/opt/{name}/) to new shared layout (/etc/matcha/apps/{name}/).
-func (m *Matcha) Migrate() error {
-	oldDir := "/opt/" + m.config.Name
-	newBase := "/etc/matcha"
-	newAppDir := filepath.Join(newBase, "apps", m.config.Name)
+	file, err := os.Open(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return vars, nil
+		}
+		return nil, err
+	}
+	defer file.Close()
 
-	if _, err := os.Stat(filepath.Join(oldDir, ".env")); os.IsNotExist(err) {
-		return fmt.Errorf("no old install found at %s", oldDir)
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+
+		key := strings.TrimSpace(parts[0])
+		value := strings.TrimSpace(parts[1])
+		vars[key] = value
 	}
 
-	fmt.Printf("Migrating %s from %s to %s\n", m.config.Name, oldDir, newAppDir)
-
-	return m.migrateToNewLayout(oldDir, newAppDir, newBase)
+	return vars, scanner.Err()
 }
 
-// migrateToNewLayout performs the actual migration from old to new directory layout.
-func (m *Matcha) migrateToNewLayout(oldDir, newAppDir, newBase string) error {
-	// Read old .env file
+// oldAppJSON is the structure of the old app.json files.
+type oldAppJSON struct {
+	Name       string   `json:"name"`
+	Image      string   `json:"image"`
+	Domain     string   `json:"domain"`
+	Port       int      `json:"port"`
+	HealthPath string   `json:"health_path"`
+	Volumes    []string `json:"volumes"`
+}
+
+// Migrate moves from old layouts to new YAML config + /var/matcha/{name}/ data dir.
+// Supports migration from:
+//   - /opt/{name}/.env (legacy layout)
+//   - /etc/matcha/apps/{name}/app.json + .env (previous multi-app layout)
+func (m *Matcha) Migrate() error {
+	// Try current multi-app layout first
+	multiAppDir := "/etc/matcha/apps/" + m.config.Name
+	if _, err := os.Stat(filepath.Join(multiAppDir, "app.json")); err == nil {
+		fmt.Printf("Migrating %s from %s to YAML config\n", m.config.Name, multiAppDir)
+		return m.migrateFromMultiApp(multiAppDir)
+	}
+
+	// Try legacy /opt/{name} layout
+	oldDir := "/opt/" + m.config.Name
+	if _, err := os.Stat(filepath.Join(oldDir, ".env")); err == nil {
+		fmt.Printf("Migrating %s from %s to YAML config\n", m.config.Name, oldDir)
+		return m.migrateFromLegacy(oldDir)
+	}
+
+	return fmt.Errorf("no old install found for %s", m.config.Name)
+}
+
+// migrateFromMultiApp migrates from /etc/matcha/apps/{name}/ layout.
+func (m *Matcha) migrateFromMultiApp(appDir string) error {
+	data, err := os.ReadFile(filepath.Join(appDir, "app.json"))
+	if err != nil {
+		return fmt.Errorf("reading app.json: %w", err)
+	}
+
+	var oldApp oldAppJSON
+	if err := json.Unmarshal(data, &oldApp); err != nil {
+		return fmt.Errorf("parsing app.json: %w", err)
+	}
+
+	// Read .env
+	vars, _ := readEnvFile(filepath.Join(appDir, ".env"))
+
+	// Build env map
+	env := m.buildMigrationEnv(vars)
+
+	// Save to YAML config
+	app := AppConfig{
+		Image:      oldApp.Image,
+		Domain:     oldApp.Domain,
+		Port:       oldApp.Port,
+		HealthPath: oldApp.HealthPath,
+		Volumes:    oldApp.Volumes,
+		Env:        env,
+	}
+
+	if err := SaveAppTo(m.configPath(), m.config.Name, app); err != nil {
+		return fmt.Errorf("saving config: %w", err)
+	}
+
+	// Move data to /var/matcha/{name}/
+	return m.migrateDataDirs(appDir)
+}
+
+// migrateFromLegacy migrates from /opt/{name}/ layout.
+func (m *Matcha) migrateFromLegacy(oldDir string) error {
 	vars, err := readEnvFile(filepath.Join(oldDir, ".env"))
 	if err != nil {
 		return fmt.Errorf("failed to read old config: %w", err)
@@ -48,67 +128,75 @@ func (m *Matcha) migrateToNewLayout(oldDir, newAppDir, newBase string) error {
 		appImage = m.config.AppImage
 	}
 
-	// Get private key
-	privateKey := vars["PRIVATE_KEY"]
-	if privateKey == "" {
-		privateKey = vars[prefix+"_PRIVATE_KEY"]
-	}
+	env := m.buildMigrationEnv(vars)
 
-	// Register in new registry
-	reg := &Registry{BaseDir: newBase}
-	entry := AppEntry{
-		Name:       m.config.Name,
+	app := AppConfig{
 		Image:      appImage,
 		Domain:     domain,
 		Port:       m.config.AppPort,
 		HealthPath: m.config.HealthPath,
-		Backups:    m.config.Backups,
 		Volumes:    m.config.Volumes,
-	}
-	if err := reg.Save(entry); err != nil {
-		return fmt.Errorf("failed to register app: %w", err)
+		Env:        env,
 	}
 
-	// Write new .env with just the private key (plus any user vars)
-	var envLines []string
-	envLines = append(envLines, "PRIVATE_KEY="+privateKey)
-	// Carry over non-managed vars
+	if err := SaveAppTo(m.configPath(), m.config.Name, app); err != nil {
+		return fmt.Errorf("saving config: %w", err)
+	}
+
+	return m.migrateDataDirs(oldDir)
+}
+
+// buildMigrationEnv extracts env vars from old .env file, keeping private key and user vars.
+func (m *Matcha) buildMigrationEnv(vars map[string]string) map[string]string {
+	prefix := m.EnvPrefix()
 	managedKeys := map[string]bool{
 		prefix + "_DOMAIN":      true,
 		prefix + "_PRIVATE_KEY": true,
+		prefix + "_APP_IMAGE":   true,
 		"APP_IMAGE":             true,
 		"PROXY_IMAGE":           true,
-		"PRIVATE_KEY":           true,
 		"INSTALL_DIR":           true,
 		"BACKUP_PATH":           true,
 		"VERSION":               true,
 		"INSTALLER_URL":         true,
 	}
-	managedKeys[prefix+"_APP_IMAGE"] = true
+
+	env := make(map[string]string)
+
+	// Keep private key
+	if v, ok := vars["PRIVATE_KEY"]; ok {
+		env["PRIVATE_KEY"] = v
+	} else if v, ok := vars[prefix+"_PRIVATE_KEY"]; ok {
+		env["PRIVATE_KEY"] = v
+	}
+
+	// Carry over non-managed env vars
 	for k, v := range vars {
-		if managedKeys[k] {
+		if managedKeys[k] || k == "PRIVATE_KEY" {
 			continue
 		}
-		envLines = append(envLines, k+"="+v)
+		env[k] = v
 	}
-	envContent := strings.Join(envLines, "\n") + "\n"
-	os.WriteFile(filepath.Join(newAppDir, ".env"), []byte(envContent), 0600)
 
-	// Move storage and logs
+	return env
+}
+
+// migrateDataDirs moves storage and logs from old dir to /var/matcha/{name}/.
+func (m *Matcha) migrateDataDirs(oldDir string) error {
+	dataDir := m.DataDir()
 	for _, sub := range []string{"storage", "logs"} {
 		oldPath := filepath.Join(oldDir, sub)
-		newPath := filepath.Join(newAppDir, sub)
 		if _, err := os.Stat(oldPath); err != nil {
 			continue
 		}
-		os.RemoveAll(newPath)
+		newPath := filepath.Join(dataDir, sub)
+		os.MkdirAll(filepath.Dir(newPath), 0755)
 		if err := os.Rename(oldPath, newPath); err != nil {
 			if err := copyDir(oldPath, newPath); err != nil {
 				return fmt.Errorf("failed to migrate %s: %w", sub, err)
 			}
 		}
 	}
-
 	return nil
 }
 

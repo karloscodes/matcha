@@ -9,12 +9,6 @@ import (
 	"strings"
 )
 
-// envData is kept minimal — only secrets that need to persist.
-type envData struct {
-	PrivateKey string
-	// Domain, AppImage, ProxyImage now come from app.json via registry
-}
-
 // collectConfig prompts the user for configuration with DNS check and confirmation.
 func (m *Matcha) collectConfig() error {
 	reader := bufio.NewReader(os.Stdin)
@@ -97,99 +91,107 @@ func (m *Matcha) collectConfig() error {
 	}
 }
 
-// setupConfig creates directories and saves configuration after user confirms.
+// setupConfig saves configuration to YAML config after user confirms.
 func (m *Matcha) setupConfig() error {
 	privateKey, err := GeneratePrivateKey()
 	if err != nil {
 		return fmt.Errorf("failed to generate private key: %w", err)
 	}
 
-	// Register app in registry (creates dirs, writes app.json)
-	reg := &Registry{BaseDir: "/etc/matcha"}
-	entry := AppEntry{
-		Name:       m.config.Name,
+	app := AppConfig{
 		Image:      m.config.AppImage,
 		Domain:     m.domain,
 		Port:       m.config.AppPort,
 		HealthPath: m.config.HealthPath,
-		Backups:    m.config.Backups,
 		Volumes:    m.config.Volumes,
-	}
-	if err := reg.Save(entry); err != nil {
-		return fmt.Errorf("failed to register app: %w", err)
+		Env: map[string]string{
+			"PRIVATE_KEY": privateKey,
+		},
 	}
 
-	// Write .env with only the private key
-	envPath := m.config.InstallDir + "/.env"
-	content := fmt.Sprintf("PRIVATE_KEY=%s\n", privateKey)
-	if err := os.WriteFile(envPath, []byte(content), 0600); err != nil {
-		return fmt.Errorf("failed to write .env: %w", err)
+	if err := SaveAppTo(m.configPath(), m.config.Name, app); err != nil {
+		return fmt.Errorf("failed to save app config: %w", err)
+	}
+
+	// Create data directories for volumes
+	for _, v := range m.resolveVolumes(m.config.Volumes) {
+		hostPath := strings.SplitN(v, ":", 2)[0]
+		if err := os.MkdirAll(hostPath, 0755); err != nil {
+			return fmt.Errorf("failed to create volume dir %s: %w", hostPath, err)
+		}
 	}
 
 	return nil
 }
 
-// loadConfig loads existing configuration from registry or .env fallback.
+// loadConfig loads existing configuration from YAML config.
+// If the app isn't in YAML yet but an old layout exists, auto-migrates first.
 func (m *Matcha) loadConfig() error {
-	// Try registry first (new multi-app layout)
-	reg := &Registry{BaseDir: "/etc/matcha"}
-	if app, err := reg.Load(m.config.Name); err == nil {
-		if app.Image != "" {
-			m.config.AppImage = app.Image
-		}
-		if app.Domain != "" {
-			m.domain = app.Domain
-		}
-		if app.Port != 0 {
-			m.config.AppPort = app.Port
-		}
-		if app.HealthPath != "" {
-			m.config.HealthPath = app.HealthPath
-		}
-		m.config.Backups = app.Backups
-		m.config.Volumes = app.Volumes
-		return nil
-	}
-
-	// Fall back to old .env format (pre-migration installs)
-	return m.loadConfigFromEnv()
-}
-
-// loadConfigFromEnv reads the old-style .env for backward compat.
-func (m *Matcha) loadConfigFromEnv() error {
-	envPath := m.config.InstallDir + "/.env"
-	vars, err := readEnvFile(envPath)
+	app, err := LoadAppFrom(m.configPath(), m.config.Name)
 	if err != nil {
-		return fmt.Errorf("failed to read config: %w", err)
+		// App not in YAML — try auto-migration from old layouts
+		if migrated := m.tryAutoMigrate(); migrated {
+			// Retry loading from YAML after migration
+			app, err = LoadAppFrom(m.configPath(), m.config.Name)
+			if err != nil {
+				return fmt.Errorf("failed to load config after migration: %w", err)
+			}
+		} else {
+			return fmt.Errorf("app %q not found in config", m.config.Name)
+		}
 	}
 
-	prefix := m.EnvPrefix()
-	if v, ok := vars[prefix+"_DOMAIN"]; ok {
-		m.domain = v
+	if app.Image != "" {
+		m.config.AppImage = app.Image
 	}
-	if v, ok := vars["APP_IMAGE"]; ok {
-		m.config.AppImage = v
+	if app.Domain != "" {
+		m.domain = app.Domain
 	}
-	if v, ok := vars[prefix+"_APP_IMAGE"]; ok {
-		m.config.AppImage = v
+	if app.Port != 0 {
+		m.config.AppPort = app.Port
 	}
-	if v, ok := vars["PROXY_IMAGE"]; ok {
-		m.config.ProxyImage = v
+	if app.HealthPath != "" {
+		m.config.HealthPath = app.HealthPath
 	}
-
+	m.config.Volumes = app.Volumes
 	return nil
 }
 
-// readPrivateKey reads the private key from .env file.
-func (m *Matcha) readPrivateKey() string {
-	envPath := m.config.InstallDir + "/.env"
-	vars, _ := readEnvFile(envPath)
-	if v, ok := vars["PRIVATE_KEY"]; ok {
-		return v
+// tryAutoMigrate attempts to migrate from old layouts to YAML config.
+// Returns true if migration was performed.
+func (m *Matcha) tryAutoMigrate() bool {
+	// Try multi-app layout: /etc/matcha/apps/{name}/app.json
+	multiAppDir := "/etc/matcha/apps/" + m.config.Name
+	if _, err := os.Stat(multiAppDir + "/app.json"); err == nil {
+		fmt.Printf("Auto-migrating %s from %s to YAML config\n", m.config.Name, multiAppDir)
+		if err := m.migrateFromMultiApp(multiAppDir); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: auto-migration failed: %v\n", err)
+			return false
+		}
+		return true
 	}
-	// Fall back to prefixed key (old format)
-	prefix := m.EnvPrefix()
-	if v, ok := vars[prefix+"_PRIVATE_KEY"]; ok {
+
+	// Try legacy layout: /opt/{name}/.env
+	oldDir := "/opt/" + m.config.Name
+	if _, err := os.Stat(oldDir + "/.env"); err == nil {
+		fmt.Printf("Auto-migrating %s from %s to YAML config\n", m.config.Name, oldDir)
+		if err := m.migrateFromLegacy(oldDir); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: auto-migration failed: %v\n", err)
+			return false
+		}
+		return true
+	}
+
+	return false
+}
+
+// readPrivateKey reads the private key from YAML config.
+func (m *Matcha) readPrivateKey() string {
+	app, err := LoadAppFrom(m.configPath(), m.config.Name)
+	if err != nil {
+		return ""
+	}
+	if v, ok := app.Env["PRIVATE_KEY"]; ok {
 		return v
 	}
 	return ""

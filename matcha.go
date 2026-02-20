@@ -14,7 +14,6 @@ type Config struct {
 	AppImage string // "karloscodes/fusionaly:latest"
 
 	// Optional with defaults
-	InstallDir string // default: /etc/matcha/apps/{Name}
 	BinaryPath string // default: /usr/local/bin/{Name}
 	ProxyImage string // default: basecamp/kamal-proxy:latest
 	HealthPath string // default: /up
@@ -22,16 +21,17 @@ type Config struct {
 
 	// Feature flags
 	CronUpdates bool // daily 3 AM auto-update cron job
-	Backups     bool // SQLite backup with retention policy
 
 	// Custom configuration
-	Volumes []string // Custom volume mounts (Docker format: host:container)
+	Volumes []string // Container paths to mount (e.g., /app/storage)
 
 	// Self-update configuration (see selfupdate.go for conventions)
-	// When configured, Update() checks GitHub releases for newer versions
-	// and downloads the new binary automatically.
 	ManagerRepo    string // GitHub repo for releases, e.g., "karloscodes/fusionaly"
 	ManagerVersion string // current version, e.g., "v1.4.37" (set via ldflags at build time)
+
+	// Internal: override paths (for testing)
+	ConfigPath  string
+	DataDirBase string
 }
 
 // Matcha is the main orchestrator for deployments.
@@ -45,9 +45,6 @@ type Matcha struct {
 // New creates a new Matcha instance with the given configuration.
 func New(cfg Config) *Matcha {
 	// Apply defaults
-	if cfg.InstallDir == "" {
-		cfg.InstallDir = "/etc/matcha/apps/" + cfg.Name
-	}
 	if cfg.BinaryPath == "" {
 		cfg.BinaryPath = "/usr/local/bin/" + cfg.Name
 	}
@@ -64,6 +61,27 @@ func New(cfg Config) *Matcha {
 	return &Matcha{
 		config: cfg,
 	}
+}
+
+// configPath returns the config file path, using override if set.
+func (m *Matcha) configPath() string {
+	if m.config.ConfigPath != "" {
+		return m.config.ConfigPath
+	}
+	return ConfigPath()
+}
+
+// DataDir returns the data directory for this app.
+func (m *Matcha) DataDir() string {
+	if m.config.DataDirBase != "" {
+		return m.config.DataDirBase + "/" + m.config.Name
+	}
+	return DataDir(m.config.Name)
+}
+
+// resolveVolumes converts container paths to docker -v args using this instance's data dir.
+func (m *Matcha) resolveVolumes(volumes []string) []string {
+	return resolveVolumesWithBase(m.DataDir(), volumes)
 }
 
 // EnvPrefix returns the uppercase name used for environment variables.
@@ -141,7 +159,6 @@ func (m *Matcha) Install() error {
 	}
 
 	// Collect config from user FIRST (before installing anything)
-	// This includes domain prompt, DNS check, and confirmation
 	if err := m.collectConfig(); err != nil {
 		return fmt.Errorf("failed to collect configuration: %w", err)
 	}
@@ -159,14 +176,6 @@ func (m *Matcha) Install() error {
 	}
 	sp.Stop(true)
 
-	// Install SQLite
-	sp = m.StartSpinner("SQLite")
-	if err := m.ensureSQLite(); err != nil {
-		sp.Stop(false)
-		return fmt.Errorf("SQLite setup failed: %w", err)
-	}
-	sp.Stop(true)
-
 	// Install Docker
 	sp = m.StartSpinner("Docker")
 	if err := m.ensureDocker(); err != nil {
@@ -175,7 +184,7 @@ func (m *Matcha) Install() error {
 	}
 	sp.Stop(true)
 
-	// Configure (create dirs, save .env)
+	// Configure (save to YAML config)
 	sp = m.StartSpinner("Configuring")
 	if err := m.setupConfig(); err != nil {
 		sp.Stop(false)
@@ -221,7 +230,6 @@ func (m *Matcha) Install() error {
 }
 
 // Update pulls the latest image and performs a deployment.
-// Also checks for manager self-updates if configured.
 func (m *Matcha) Update() error {
 	printHeader("Updating " + m.config.Name)
 
@@ -234,7 +242,6 @@ func (m *Matcha) Update() error {
 			printWarn("self-update check failed: %v", err)
 		} else if updated {
 			sp.Stop(true)
-			// Binary was replaced, but we continue with current process
 		} else {
 			sp.Stop(true)
 		}
@@ -285,39 +292,6 @@ func (m *Matcha) Reload() error {
 	return nil
 }
 
-// RestoreDB lists backups and restores the selected one.
-func (m *Matcha) RestoreDB() error {
-	if !m.config.Backups {
-		return fmt.Errorf("backups not enabled for this application")
-	}
-
-	printHeader("Restoring database for " + m.config.Name)
-
-	backups, err := m.listBackups()
-	if err != nil {
-		return fmt.Errorf("failed to list backups: %w", err)
-	}
-
-	if len(backups) == 0 {
-		return fmt.Errorf("no backups found")
-	}
-
-	selected, err := m.promptBackupSelection(backups)
-	if err != nil {
-		return fmt.Errorf("backup selection failed: %w", err)
-	}
-
-	sp := m.StartSpinner("Restoring")
-	if err := m.restoreBackup(selected); err != nil {
-		sp.Stop(false)
-		return fmt.Errorf("restore failed: %w", err)
-	}
-	sp.Stop(true)
-
-	printSuccess("Database restored")
-	return nil
-}
-
 // Status shows the current state of the deployment.
 func (m *Matcha) Status() error {
 	return m.showStatus()
@@ -333,24 +307,22 @@ func (m *Matcha) SetImage(image string) {
 	m.config.AppImage = image
 }
 
-// SaveImage persists the current app image to the registry.
+// SaveImage persists the current app image to the YAML config.
 func (m *Matcha) SaveImage() error {
-	reg := &Registry{BaseDir: "/etc/matcha"}
-	app, err := reg.Load(m.config.Name)
+	app, err := LoadAppFrom(m.configPath(), m.config.Name)
 	if err != nil {
 		return err
 	}
 	app.Image = m.config.AppImage
-	return reg.Save(app)
+	return SaveAppTo(m.configPath(), m.config.Name, app)
 }
 
-// GetDomain reads the domain from config or registry.
+// GetDomain reads the domain from config or YAML.
 func (m *Matcha) GetDomain() (string, error) {
 	if m.domain != "" {
 		return m.domain, nil
 	}
-	reg := &Registry{BaseDir: "/etc/matcha"}
-	app, err := reg.Load(m.config.Name)
+	app, err := LoadAppFrom(m.configPath(), m.config.Name)
 	if err != nil {
 		return "", err
 	}
@@ -362,28 +334,6 @@ func (m *Matcha) Exec(args ...string) error {
 	execArgs := append([]string{"exec", m.AppContainerName()}, args...)
 	_, err := m.runDocker(execArgs...)
 	return err
-}
-
-// BackupDB creates a backup of the database and returns the backup path.
-func (m *Matcha) BackupDB() (string, error) {
-	backupDir := m.config.InstallDir + "/storage/backups"
-	dbPath := m.config.InstallDir + "/storage/" + m.config.Name + "-production.db"
-
-	// Ensure backup directory exists
-	if err := os.MkdirAll(backupDir, 0755); err != nil {
-		return "", fmt.Errorf("failed to create backup dir: %w", err)
-	}
-
-	// Generate backup filename with timestamp
-	backupPath := fmt.Sprintf("%s/backup_upgrade_%d.db", backupDir, os.Getpid())
-
-	// Use sqlite3 .backup command (database is on host filesystem)
-	cmd := exec.Command("sqlite3", dbPath, fmt.Sprintf(".backup '%s'", backupPath))
-	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("backup failed: %w", err)
-	}
-
-	return backupPath, nil
 }
 
 // Deploy triggers a deployment with current configuration.

@@ -13,7 +13,12 @@ func (m *Matcha) proxyDeployArgs(domain string) []string {
 		"--target", target,
 	}
 
-	if !isLocalhost(domain) {
+	if domain == "localhost" {
+		// Bare localhost: skip --host (catches all requests) and --tls
+	} else if isLocalhost(domain) {
+		// Localhost subdomains (e.g., app.localhost): set --host for routing, skip --tls
+		args = append(args, "--host", domain)
+	} else {
 		args = append(args, "--host", domain, "--tls")
 	}
 

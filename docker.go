@@ -97,38 +97,32 @@ func (m *Matcha) stopAndRemove(name string) error {
 func (m *Matcha) deployApp(name string) error {
 	m.stopAndRemove(name)
 
-	prefix := m.EnvPrefix()
-	privateKey := m.readPrivateKey()
-
 	args := []string{
 		"run", "-d",
 		"--name", name,
 		"--network", m.NetworkName(),
-		"-v", m.config.InstallDir + "/storage:/app/storage",
-		"-v", m.config.InstallDir + "/logs:/app/logs",
 	}
 
-	for _, v := range m.config.Volumes {
+	// Mount volumes from config (resolved from container paths)
+	for _, v := range m.resolveVolumes(m.config.Volumes) {
+		hostPath := strings.SplitN(v, ":", 2)[0]
+		os.MkdirAll(hostPath, 0755)
 		args = append(args, "-v", v)
 	}
 
-	// Auto-generated env vars from config
+	// Load env vars from YAML config
+	app, _ := LoadAppFrom(m.configPath(), m.config.Name)
+	for k, v := range app.Env {
+		args = append(args, "-e", k+"="+v)
+	}
+
+	// Auto-generated env vars
+	prefix := m.EnvPrefix()
 	args = append(args,
 		"-e", fmt.Sprintf("%s_DOMAIN=%s", prefix, m.domain),
-		"-e", fmt.Sprintf("%s_PRIVATE_KEY=%s", prefix, privateKey),
 		"-e", fmt.Sprintf("%s_APP_PORT=%d", prefix, m.config.AppPort),
 		"-e", fmt.Sprintf("%s_ENV=production", prefix),
 	)
-
-	// User env vars from .env file (skip managed keys)
-	envPath := m.config.InstallDir + "/.env"
-	userVars, _ := readEnvFile(envPath)
-	for k, v := range userVars {
-		if k == "PRIVATE_KEY" || strings.HasPrefix(k, prefix+"_") || k == "APP_IMAGE" || k == "PROXY_IMAGE" {
-			continue
-		}
-		args = append(args, "-e", k+"="+v)
-	}
 
 	args = append(args,
 		"--memory=512m",
@@ -145,7 +139,10 @@ func (m *Matcha) deployProxy() error {
 	name := m.ProxyContainerName()
 	m.stopAndRemove(name)
 
-	proxyDataDir := "/etc/matcha/proxy-data"
+	proxyDataDir := "/var/matcha/proxy"
+	if m.config.DataDirBase != "" {
+		proxyDataDir = m.config.DataDirBase + "/proxy"
+	}
 	os.MkdirAll(proxyDataDir, 0755)
 
 	args := []string{
