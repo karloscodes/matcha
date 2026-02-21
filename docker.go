@@ -112,12 +112,16 @@ func (m *Matcha) deployApp(name string) error {
 
 	// Load env vars from YAML config
 	app, _ := LoadAppFrom(m.configPath(), m.config.Name)
+	prefix := m.EnvPrefix()
 	for k, v := range app.Env {
 		args = append(args, "-e", k+"="+v)
+		// Backwards compat: also set prefixed version for known keys
+		if k == "PRIVATE_KEY" {
+			args = append(args, "-e", prefix+"_PRIVATE_KEY="+v)
+		}
 	}
 
 	// Auto-generated env vars
-	prefix := m.EnvPrefix()
 	args = append(args,
 		"-e", fmt.Sprintf("%s_DOMAIN=%s", prefix, m.domain),
 		"-e", fmt.Sprintf("%s_APP_PORT=%d", prefix, m.config.AppPort),
