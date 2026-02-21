@@ -88,7 +88,9 @@ func requireAppName(cmd string) string {
 func matchaFromConfig(name string) *matcha.Matcha {
 	app, err := matcha.LoadApp(name)
 	if err != nil {
-		fatal(fmt.Errorf("app %q not found. Run 'matcha list' to see registered apps", name))
+		// App not in YAML yet — return minimal config.
+		// loadConfig() in Update/Deploy will try auto-migration from old layouts.
+		return matcha.New(matcha.Config{Name: name})
 	}
 	return matcha.New(matcha.Config{
 		Name:       name,
