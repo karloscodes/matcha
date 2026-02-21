@@ -107,6 +107,9 @@ func (m *Matcha) migrateFromMultiApp(appDir string) error {
 		return fmt.Errorf("saving config: %w", err)
 	}
 
+	// Stop old containers that used {name}-based naming
+	m.stopOldContainers()
+
 	// Move data to /var/matcha/{name}/
 	return m.migrateDataDirs(appDir)
 }
@@ -143,7 +146,21 @@ func (m *Matcha) migrateFromLegacy(oldDir string) error {
 		return fmt.Errorf("saving config: %w", err)
 	}
 
+	// Stop old containers that used {name}-based naming
+	m.stopOldContainers()
+
 	return m.migrateDataDirs(oldDir)
+}
+
+// stopOldContainers removes containers from pre-0.12 naming ({name}-proxy, {name}-app).
+func (m *Matcha) stopOldContainers() {
+	oldNames := []string{
+		m.config.Name + "-proxy",
+		m.config.Name + "-app",
+	}
+	for _, name := range oldNames {
+		m.stopAndRemove(name)
+	}
 }
 
 // buildMigrationEnv extracts env vars from old .env file, keeping private key and user vars.
