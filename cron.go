@@ -12,6 +12,11 @@ const cronTemplate = `# Matcha auto-update for %s
 
 // setupCron creates a cron job for automatic updates.
 func (m *Matcha) setupCron() error {
+	logsDir := m.DataDir() + "/logs"
+	if err := os.MkdirAll(logsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create logs directory: %w", err)
+	}
+
 	cronFile := fmt.Sprintf("/etc/cron.d/%s-update", m.config.Name)
 	content := fmt.Sprintf(cronTemplate, m.config.Name, m.config.BinaryPath, m.DataDir())
 
