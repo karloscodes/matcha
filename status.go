@@ -18,7 +18,7 @@ func (m *Matcha) showStatus() error {
 		fmt.Printf("  Proxy:    %s✗ not running%s\n", "\033[0;31m", "\033[0m")
 	}
 
-	name := m.AppContainerName()
+	name := m.findActiveContainer()
 	if m.isRunning(name) {
 		fmt.Printf("  App:      %s✓ running%s\n", "\033[0;32m", "\033[0m")
 		m.showContainerInfo(name)

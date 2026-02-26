@@ -196,8 +196,12 @@ func (m *Matcha) deployProxy() error {
 }
 
 // StopApp stops and removes the app container.
+// StopApp stops and removes all app containers (both base and -next).
 func (m *Matcha) StopApp() error {
-	return m.stopAndRemove(m.AppContainerName())
+	base := m.config.Name
+	m.stopAndRemove(base)
+	m.stopAndRemove(base + "-next")
+	return nil
 }
 
 // pruneImages removes unused images.

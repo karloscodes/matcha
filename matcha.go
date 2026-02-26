@@ -144,7 +144,7 @@ func Setup() error {
 
 // Logs streams logs from the app container.
 func (m *Matcha) Logs() error {
-	cmd := exec.Command("docker", "logs", "--tail", "100", "-f", m.AppContainerName())
+	cmd := exec.Command("docker", "logs", "--tail", "100", "-f", m.findActiveContainer())
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
@@ -370,7 +370,7 @@ func (m *Matcha) RestoreDB() error {
 
 // Exec runs a command inside the app container.
 func (m *Matcha) Exec(args ...string) error {
-	execArgs := append([]string{"exec", m.AppContainerName()}, args...)
+	execArgs := append([]string{"exec", m.findActiveContainer()}, args...)
 	_, err := m.runDocker(execArgs...)
 	return err
 }
