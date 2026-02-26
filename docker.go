@@ -86,6 +86,32 @@ func (m *Matcha) isRunning(name string) bool {
 	return err == nil && strings.TrimSpace(out) != ""
 }
 
+// findActiveContainer returns the name of the currently running app container.
+// Checks both "{name}" and "{name}-next" to find which is active.
+// Returns the base name as fallback (first deploy or neither running).
+func (m *Matcha) findActiveContainer() string {
+	base := m.config.Name
+	next := base + "-next"
+
+	if m.isRunning(next) {
+		return next
+	}
+	if m.isRunning(base) {
+		return base
+	}
+	return base
+}
+
+// nextContainerName returns the alternate container name for zero-downtime swap.
+// "{name}" ↔ "{name}-next"
+func (m *Matcha) nextContainerName(current string) string {
+	base := m.config.Name
+	if current == base {
+		return base + "-next"
+	}
+	return base
+}
+
 // stopAndRemove stops and removes a container.
 func (m *Matcha) stopAndRemove(name string) error {
 	m.runDocker("stop", name)

@@ -96,6 +96,38 @@ func TestAppContainerName(t *testing.T) {
 	}
 }
 
+func TestFindActiveContainer(t *testing.T) {
+	m := New(Config{Name: "myapp", AppImage: "test:latest"})
+
+	t.Run("returns base name by default", func(t *testing.T) {
+		got := m.findActiveContainer()
+
+		if got != "myapp" {
+			t.Errorf("findActiveContainer() = %q, want myapp", got)
+		}
+	})
+}
+
+func TestNextContainerName(t *testing.T) {
+	m := New(Config{Name: "myapp", AppImage: "test:latest"})
+
+	t.Run("base returns next", func(t *testing.T) {
+		got := m.nextContainerName("myapp")
+
+		if got != "myapp-next" {
+			t.Errorf("nextContainerName(myapp) = %q, want myapp-next", got)
+		}
+	})
+
+	t.Run("next returns base", func(t *testing.T) {
+		got := m.nextContainerName("myapp-next")
+
+		if got != "myapp" {
+			t.Errorf("nextContainerName(myapp-next) = %q, want myapp", got)
+		}
+	})
+}
+
 func TestGetConfig(t *testing.T) {
 	cfg := Config{
 		Name:     "myapp",
