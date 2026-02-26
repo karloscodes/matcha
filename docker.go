@@ -121,7 +121,8 @@ func (m *Matcha) stopAndRemove(name string) error {
 
 // deployApp deploys an app container.
 func (m *Matcha) deployApp(name string) error {
-	m.stopAndRemove(name)
+	// Remove stale container with same name (e.g. leftover -next from failed deploy)
+	m.runDocker("rm", "-f", name)
 
 	args := []string{
 		"run", "-d",

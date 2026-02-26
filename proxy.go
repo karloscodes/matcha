@@ -3,10 +3,10 @@ package matcha
 import "fmt"
 
 // proxyDeployArgs builds the docker exec args for kamal-proxy deploy.
-func (m *Matcha) proxyDeployArgs(domain string) []string {
+func (m *Matcha) proxyDeployArgs(domain string, targetContainer string) []string {
 	serviceName := m.config.Name
 	proxyContainer := m.ProxyContainerName()
-	target := fmt.Sprintf("%s:%d", m.AppContainerName(), m.config.AppPort)
+	target := fmt.Sprintf("%s:%d", targetContainer, m.config.AppPort)
 
 	args := []string{
 		"exec", proxyContainer, "kamal-proxy", "deploy", serviceName,
@@ -28,8 +28,8 @@ func (m *Matcha) proxyDeployArgs(domain string) []string {
 }
 
 // deployToProxy registers the app container with kamal-proxy.
-func (m *Matcha) deployToProxy(domain string) error {
-	args := m.proxyDeployArgs(domain)
+func (m *Matcha) deployToProxy(domain string, targetContainer string) error {
+	args := m.proxyDeployArgs(domain, targetContainer)
 	_, err := m.runDocker(args...)
 	if err != nil {
 		return fmt.Errorf("kamal-proxy deploy failed: %w", err)

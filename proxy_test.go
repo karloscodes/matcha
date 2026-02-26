@@ -9,11 +9,11 @@ func TestProxyDeployArgs(t *testing.T) {
 		AppPort:  8080,
 	})
 
-	args := m.proxyDeployArgs("app.example.com")
+	args := m.proxyDeployArgs("app.example.com", "testapp-next")
 
 	expected := []string{
 		"exec", "matcha-proxy", "kamal-proxy", "deploy", "testapp",
-		"--target", "testapp:8080",
+		"--target", "testapp-next:8080",
 		"--host", "app.example.com",
 		"--tls",
 		"--health-check-path", "/up",
@@ -37,7 +37,7 @@ func TestProxyDeployArgsLocalhost(t *testing.T) {
 		AppPort:  3000,
 	})
 
-	args := m.proxyDeployArgs("localhost")
+	args := m.proxyDeployArgs("localhost", "testapp")
 
 	for _, arg := range args {
 		if arg == "--tls" {
