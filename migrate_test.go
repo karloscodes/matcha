@@ -138,6 +138,65 @@ func TestMigrateFromLegacy(t *testing.T) {
 	}
 }
 
+// TestMigrateFromLegacyDetectsVolumes verifies that when Config.Volumes is empty
+// (as happens during auto-migration), volumes are detected from existing directories.
+func TestMigrateFromLegacyDetectsVolumes(t *testing.T) {
+	dir := t.TempDir()
+
+	oldDir := filepath.Join(dir, "opt", "fusionaly")
+	os.MkdirAll(filepath.Join(oldDir, "storage"), 0755)
+	os.MkdirAll(filepath.Join(oldDir, "logs"), 0755)
+
+	os.WriteFile(filepath.Join(oldDir, ".env"), []byte(
+		"FUSIONALY_DOMAIN=app.example.com\nAPP_IMAGE=ghcr.io/karloscodes/fusionaly:latest\nPRIVATE_KEY=abc123\n",
+	), 0600)
+	os.WriteFile(filepath.Join(oldDir, "storage", "app.db"), []byte("sqlite-data"), 0644)
+	os.WriteFile(filepath.Join(oldDir, "logs", "app.log"), []byte("log data"), 0644)
+
+	configPath := filepath.Join(dir, "config.yml")
+	dataBase := filepath.Join(dir, "var", "matcha")
+
+	// No Volumes in Config — simulates matchaFromConfig("fusionaly") during auto-migration
+	m := New(Config{
+		Name:        "fusionaly",
+		AppImage:    "ghcr.io/karloscodes/fusionaly:latest",
+		ConfigPath:  configPath,
+		DataDirBase: dataBase,
+	})
+
+	err := m.migrateFromLegacy(oldDir)
+	if err != nil {
+		t.Fatalf("migration failed: %v", err)
+	}
+
+	app, err := LoadAppFrom(configPath, "fusionaly")
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+
+	// Volumes should be detected from existing storage/ and logs/ dirs
+	if len(app.Volumes) != 2 {
+		t.Fatalf("expected 2 volumes, got %d: %v", len(app.Volumes), app.Volumes)
+	}
+
+	hasStorage := false
+	hasLogs := false
+	for _, v := range app.Volumes {
+		if v == "/app/storage" {
+			hasStorage = true
+		}
+		if v == "/app/logs" {
+			hasLogs = true
+		}
+	}
+	if !hasStorage {
+		t.Errorf("expected /app/storage volume, got %v", app.Volumes)
+	}
+	if !hasLogs {
+		t.Errorf("expected /app/logs volume, got %v", app.Volumes)
+	}
+}
+
 func TestMigrateMovesBackups(t *testing.T) {
 	dir := t.TempDir()
 

@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -133,12 +134,18 @@ func (m *Matcha) migrateFromLegacy(oldDir string) error {
 
 	env := m.buildMigrationEnv(vars)
 
+	// Use configured volumes, or detect from existing directories
+	volumes := m.config.Volumes
+	if len(volumes) == 0 {
+		volumes = detectVolumes(oldDir)
+	}
+
 	app := AppConfig{
 		Image:      appImage,
 		Domain:     domain,
 		Port:       m.config.AppPort,
 		HealthPath: m.config.HealthPath,
-		Volumes:    m.config.Volumes,
+		Volumes:    volumes,
 		Env:        env,
 	}
 
@@ -150,6 +157,24 @@ func (m *Matcha) migrateFromLegacy(oldDir string) error {
 	m.stopOldContainers()
 
 	return m.migrateDataDirs(oldDir)
+}
+
+// detectVolumes infers container volume paths from existing directories in oldDir.
+// Maps known directory names to their conventional container paths.
+func detectVolumes(oldDir string) []string {
+	knownDirs := map[string]string{
+		"storage": "/app/storage",
+		"logs":    "/app/logs",
+	}
+
+	var volumes []string
+	for dir, containerPath := range knownDirs {
+		if info, err := os.Stat(filepath.Join(oldDir, dir)); err == nil && info.IsDir() {
+			volumes = append(volumes, containerPath)
+		}
+	}
+	sort.Strings(volumes)
+	return volumes
 }
 
 // stopOldContainers removes containers from pre-0.12 naming ({name}-proxy, {name}-app).
