@@ -218,6 +218,16 @@ Matcha auto-generates these for each container:
 
 A `PRIVATE_KEY` is generated on first install — useful if your app needs a random secret key (e.g., for signing sessions or tokens). You can ignore it if your app doesn't need one. Additional env vars can be set via `--env` flag or directly in `/etc/matcha/config.yml`.
 
+## Recommended: Cloudflare proxy
+
+Put [Cloudflare](https://www.cloudflare.com/) in front of your server to hide its real IP address. This is free and requires no changes to Matcha.
+
+1. Add your domain to Cloudflare and point DNS to your server
+2. Enable the orange cloud (Proxy) on your DNS records
+3. Set SSL/TLS mode to **Full (Strict)**
+
+Cloudflare handles TLS at the edge, and kamal-proxy continues to serve its own Let's Encrypt certificate on the origin. The entire chain stays encrypted — visitors never see your server's real IP.
+
 ## License
 
 MIT
