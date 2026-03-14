@@ -39,6 +39,8 @@ func main() {
 		cmdExec()
 	case "logs":
 		cmdLogs()
+	case "check":
+		cmdCheck()
 	case "version":
 		fmt.Println("matcha " + version)
 	default:
@@ -62,6 +64,7 @@ Commands:
   remove (rm) <name> Remove an app
   exec <name> <cmd>  Run a command in the app container
   logs <name>        Stream app logs
+  check              Check server security
   version            Print version`)
 }
 
@@ -107,6 +110,8 @@ func cmdSetup() {
 	}
 	setupCron()
 	fmt.Println("Matcha is ready. Add your first app with 'matcha add'.")
+	fmt.Println()
+	fmt.Println("Run 'matcha check' to verify your server security.")
 }
 
 func setupCron() {
@@ -364,6 +369,12 @@ func cmdLogs() {
 
 	if err := m.Logs(); err != nil {
 		fatal(err)
+	}
+}
+
+func cmdCheck() {
+	if err := matcha.Check(); err != nil {
+		os.Exit(1)
 	}
 }
 

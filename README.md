@@ -175,6 +175,7 @@ See `.goreleaser.yml` in this repo for an example config.
 | `matcha logs <name>` | Stream app logs |
 | `matcha exec <name> <cmd>` | Run command in container |
 | `matcha remove <name>` | Stop and unregister |
+| `matcha check` | Check server security (SSH, firewall, Cloudflare, Tailscale) |
 
 ## Config (library)
 
