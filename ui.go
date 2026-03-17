@@ -101,6 +101,8 @@ func (m *Matcha) printComplete(domain string, dnsWarning bool, serverIP string) 
 	}
 
 	fmt.Printf("Visit %s to create your account.\n", cyan("https://"+domain))
+	fmt.Println()
+	fmt.Printf("Run %s to check your server security.\n", bold(m.config.Name+" check"))
 }
 
 // printHeader prints a bold header.

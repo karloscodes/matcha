@@ -17,6 +17,7 @@ func TestProxyDeployArgs(t *testing.T) {
 		"--host", "app.example.com",
 		"--tls",
 		"--health-check-path", "/up",
+		"--forward-headers",
 	}
 
 	if len(args) != len(expected) {
@@ -56,5 +57,15 @@ func TestProxyDeployArgsLocalhost(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("missing --target testapp:3000 in %v", args)
+	}
+
+	forwardHeaders := false
+	for _, arg := range args {
+		if arg == "--forward-headers" {
+			forwardHeaders = true
+		}
+	}
+	if !forwardHeaders {
+		t.Error("should include --forward-headers for localhost")
 	}
 }

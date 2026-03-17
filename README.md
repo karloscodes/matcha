@@ -219,6 +219,20 @@ Matcha auto-generates these for each container:
 
 A `PRIVATE_KEY` is generated on first install — useful if your app needs a random secret key (e.g., for signing sessions or tokens). You can ignore it if your app doesn't need one. Additional env vars can be set via `--env` flag or directly in `/etc/matcha/config.yml`.
 
+## Real client IP forwarding
+
+Matcha passes `--forward-headers` to kamal-proxy so your app receives the real client IP via standard headers (`X-Forwarded-For`, `X-Real-IP`, etc.).
+
+Without this flag, kamal-proxy strips forwarded headers when TLS is enabled — your app would only see the Docker-internal proxy IP.
+
+This works out of the box with:
+
+- **Direct traffic** — kamal-proxy sets `X-Forwarded-For` from the TCP connection
+- **Cloudflare** — Cloudflare sets `CF-Connecting-IP` and `X-Forwarded-For` before reaching your server
+- **Any reverse proxy** — as long as it sets standard forwarded headers
+
+Your app should read client IP from these headers (in priority order): `X-Forwarded-For`, `X-Real-IP`, `CF-Connecting-IP`.
+
 ## Recommended: Cloudflare proxy
 
 Put [Cloudflare](https://www.cloudflare.com/) in front of your server to hide its real IP address. This is free and requires no changes to Matcha.
@@ -228,6 +242,8 @@ Put [Cloudflare](https://www.cloudflare.com/) in front of your server to hide it
 3. Set SSL/TLS mode to **Full (Strict)**
 
 Cloudflare handles TLS at the edge, and kamal-proxy continues to serve its own Let's Encrypt certificate on the origin. The entire chain stays encrypted — visitors never see your server's real IP.
+
+Run `matcha check` to verify Cloudflare proxy is active for your domains.
 
 ## License
 
