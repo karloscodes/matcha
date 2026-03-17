@@ -19,6 +19,10 @@ type CheckResult struct {
 // Check runs security checks and prints results.
 // Returns nil if all required checks pass, error otherwise.
 func Check() error {
+	if os.Geteuid() != 0 {
+		return fmt.Errorf("security check requires root privileges (try: sudo %s check)", os.Args[0])
+	}
+
 	fmt.Println()
 	fmt.Println(bold("Security check"))
 	fmt.Println()
