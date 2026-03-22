@@ -155,6 +155,11 @@ func (m *Matcha) deployApp(name string) error {
 		"-e", fmt.Sprintf("%s_ENV=production", prefix),
 	)
 
+	// Pass manager version so the app can detect outdated CLI
+	if m.config.ManagerVersion != "" {
+		args = append(args, "-e", "MATCHA_MANAGER_VERSION="+m.config.ManagerVersion)
+	}
+
 	args = append(args,
 		"--memory=512m",
 		"--restart", "unless-stopped",

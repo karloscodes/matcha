@@ -280,8 +280,9 @@ func (m *Matcha) Update() error {
 	for _, name := range ListAppsSorted(apps) {
 		app := apps[name]
 		am := NewFromApp(name, app, Config{
-			ConfigPath:  m.config.ConfigPath,
-			DataDirBase: m.config.DataDirBase,
+			ConfigPath:     m.config.ConfigPath,
+			DataDirBase:    m.config.DataDirBase,
+			ManagerVersion: m.config.ManagerVersion,
 		})
 		if err := am.updateSingle(); err != nil {
 			printWarn("failed to update %s: %v", name, err)
