@@ -283,6 +283,7 @@ func (m *Matcha) Update() error {
 			ConfigPath:     m.config.ConfigPath,
 			DataDirBase:    m.config.DataDirBase,
 			ManagerVersion: m.config.ManagerVersion,
+			Backups:        m.config.Backups,
 		})
 		if err := am.updateSingle(); err != nil {
 			printWarn("failed to update %s: %v", name, err)
