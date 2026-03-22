@@ -24,6 +24,10 @@ func (m *Matcha) proxyDeployArgs(domain string, targetContainer string) []string
 
 	args = append(args, "--health-check-path", m.config.HealthPath)
 
+	if m.config.HealthTimeout > 0 && m.config.HealthTimeout != 30 {
+		args = append(args, "--health-check-timeout", fmt.Sprintf("%ds", m.config.HealthTimeout))
+	}
+
 	// Always forward X-Forwarded-* headers so the app gets the real client IP.
 	// When --tls is set, kamal-proxy defaults to stripping these headers.
 	// Behind Cloudflare (or any reverse proxy), these headers carry the real IP.

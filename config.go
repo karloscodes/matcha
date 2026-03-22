@@ -154,6 +154,9 @@ func (m *Matcha) loadConfig() error {
 		m.config.HealthPath = app.HealthPath
 	}
 	m.config.Volumes = app.Volumes
+	if app.HealthTimeout > 0 {
+		m.config.HealthTimeout = app.HealthTimeout
+	}
 	return nil
 }
 

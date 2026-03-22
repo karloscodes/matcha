@@ -24,7 +24,8 @@ type Config struct {
 	Backups     bool // SQLite backup with retention policy
 
 	// Custom configuration
-	Volumes []string // Container paths to mount (e.g., /app/storage)
+	Volumes        []string // Container paths to mount (e.g., /app/storage)
+	HealthTimeout  int      // Health check timeout in seconds (default: 30)
 
 	// Self-update configuration (see selfupdate.go for conventions)
 	ManagerRepo    string // GitHub repo for releases, e.g., "karloscodes/fusionaly"
@@ -58,10 +59,26 @@ func New(cfg Config) *Matcha {
 	if cfg.AppPort == 0 {
 		cfg.AppPort = 8080
 	}
+	if cfg.HealthTimeout == 0 {
+		cfg.HealthTimeout = 30
+	}
 
 	return &Matcha{
 		config: cfg,
 	}
+}
+
+// NewFromApp creates a Matcha instance from an AppConfig and a base Config.
+// The base config provides paths and other shared settings; app-specific
+// fields (image, port, health, volumes) come from the AppConfig.
+func NewFromApp(name string, app AppConfig, baseCfg Config) *Matcha {
+	baseCfg.Name = name
+	baseCfg.AppImage = app.Image
+	baseCfg.AppPort = app.Port
+	baseCfg.HealthPath = app.HealthPath
+	baseCfg.HealthTimeout = app.HealthTimeout
+	baseCfg.Volumes = app.Volumes
+	return New(baseCfg)
 }
 
 // configPath returns the config file path, using override if set.
@@ -230,12 +247,13 @@ func (m *Matcha) Install() error {
 	return nil
 }
 
-// Update pulls the latest image and performs a deployment.
+// Update pulls the latest images and deploys all apps from the YAML config.
+// Self-update runs once. Each app gets its own image pull and deploy.
+// Individual app failures are warned but don't stop other apps.
 func (m *Matcha) Update() error {
-	printHeader("Updating " + m.config.Name)
-
-	// Self-update manager binary if configured
+	// Self-update manager binary if configured (once)
 	if m.config.ManagerRepo != "" {
+		printHeader("Updating " + m.config.Name)
 		sp := m.StartSpinner("Checking for updates")
 		updated, err := m.SelfUpdate()
 		if err != nil {
@@ -247,6 +265,35 @@ func (m *Matcha) Update() error {
 			sp.Stop(true)
 		}
 	}
+
+	// Load all apps from YAML config
+	apps, err := ListAppsFrom(m.configPath())
+	if err != nil {
+		return fmt.Errorf("failed to list apps: %w", err)
+	}
+
+	// If no apps in config, fall back to updating just the primary app
+	if len(apps) == 0 {
+		return m.updateSingle()
+	}
+
+	for _, name := range ListAppsSorted(apps) {
+		app := apps[name]
+		am := NewFromApp(name, app, Config{
+			ConfigPath:  m.config.ConfigPath,
+			DataDirBase: m.config.DataDirBase,
+		})
+		if err := am.updateSingle(); err != nil {
+			printWarn("failed to update %s: %v", name, err)
+		}
+	}
+
+	return nil
+}
+
+// updateSingle pulls images and deploys a single app.
+func (m *Matcha) updateSingle() error {
+	printHeader("Updating " + m.config.Name)
 
 	if err := m.loadConfig(); err != nil {
 		return fmt.Errorf("failed to load config: %w", err)

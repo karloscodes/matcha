@@ -21,7 +21,8 @@ type AppConfig struct {
 	Port       int               `yaml:"port,omitempty"`
 	HealthPath string            `yaml:"health_path,omitempty"`
 	Volumes    []string          `yaml:"volumes,omitempty"`
-	Env        map[string]string `yaml:"env,omitempty"`
+	Env            map[string]string `yaml:"env,omitempty"`
+	HealthTimeout  int               `yaml:"health_timeout,omitempty"`
 }
 
 // ConfigPath returns the path to the matcha config file.

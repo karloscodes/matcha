@@ -95,13 +95,7 @@ func matchaFromConfig(name string) *matcha.Matcha {
 		// loadConfig() in Update/Deploy will try auto-migration from old layouts.
 		return matcha.New(matcha.Config{Name: name})
 	}
-	return matcha.New(matcha.Config{
-		Name:       name,
-		AppImage:   app.Image,
-		AppPort:    app.Port,
-		HealthPath: app.HealthPath,
-		Volumes:    app.Volumes,
-	})
+	return matcha.NewFromApp(name, app, matcha.Config{})
 }
 
 func cmdSetup() {
@@ -239,13 +233,7 @@ func cmdDeploy() {
 	if err != nil {
 		fatal(fmt.Errorf("app %q not found. Run 'matcha list' to see registered apps", name))
 	}
-	m := matcha.New(matcha.Config{
-		Name:       name,
-		AppImage:   app.Image,
-		AppPort:    app.Port,
-		HealthPath: app.HealthPath,
-		Volumes:    app.Volumes,
-	})
+	m := matcha.NewFromApp(name, app, matcha.Config{})
 
 	if err := m.Deploy(); err != nil {
 		fatal(err)
