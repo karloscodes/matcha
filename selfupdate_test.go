@@ -59,7 +59,7 @@ func TestSelfUpdateSkipsWhenNotConfigured(t *testing.T) {
 	}
 }
 
-func TestSelfUpdateSkipsDevVersion(t *testing.T) {
+func TestSelfUpdateDevVersionAttemptsUpdate(t *testing.T) {
 	m := New(Config{
 		Name:           "test",
 		AppImage:       "test:latest",
@@ -67,12 +67,11 @@ func TestSelfUpdateSkipsDevVersion(t *testing.T) {
 		ManagerVersion: "dev",
 	})
 
-	updated, err := m.SelfUpdate()
+	_, err := m.SelfUpdate()
 
-	if err != nil {
-		t.Errorf("SelfUpdate() error = %v, want nil", err)
-	}
-	if updated {
-		t.Error("SelfUpdate() = true, want false for dev version")
+	// Dev versions should attempt to update (not skip), so we expect
+	// a network error from the fake repo, not a nil/silent skip.
+	if err == nil {
+		t.Error("SelfUpdate() err = nil, want error from attempting update with fake repo")
 	}
 }

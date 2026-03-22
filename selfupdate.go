@@ -56,8 +56,8 @@ func (m *Matcha) SelfUpdate() (bool, error) {
 	}
 
 	currentVersion := strings.TrimPrefix(m.config.ManagerVersion, "v")
-	if currentVersion == "" || currentVersion == "dev" {
-		return false, nil // Dev version, skip update
+	if currentVersion == "" {
+		return false, nil // No version configured
 	}
 
 	// Fetch latest release from GitHub
@@ -68,8 +68,8 @@ func (m *Matcha) SelfUpdate() (bool, error) {
 
 	latestVersion := strings.TrimPrefix(release.TagName, "v")
 
-	// Compare versions
-	if compareVersions(currentVersion, latestVersion) >= 0 {
+	// Dev builds always update to latest release
+	if currentVersion != "dev" && compareVersions(currentVersion, latestVersion) >= 0 {
 		return false, nil // Already up to date
 	}
 
