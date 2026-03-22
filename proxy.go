@@ -25,7 +25,7 @@ func (m *Matcha) proxyDeployArgs(domain string, targetContainer string) []string
 	args = append(args, "--health-check-path", m.config.HealthPath)
 
 	if m.config.HealthTimeout > 0 && m.config.HealthTimeout != 30 {
-		args = append(args, "--health-check-timeout", fmt.Sprintf("%ds", m.config.HealthTimeout))
+		args = append(args, "--deploy-timeout", fmt.Sprintf("%ds", m.config.HealthTimeout))
 	}
 
 	// Always forward X-Forwarded-* headers so the app gets the real client IP.
