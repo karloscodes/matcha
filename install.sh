@@ -2,7 +2,7 @@
 set -e
 
 # Matcha installer — downloads the latest binary from GitHub releases.
-# Usage: curl -fsSL https://raw.githubusercontent.com/karloscodes/matcha/main/install.sh | sh
+# Usage: curl -fsSL https://raw.githubusercontent.com/karloscodes/matcha/master/install.sh | sudo sh
 
 REPO="karloscodes/matcha"
 INSTALL_DIR="/usr/local/bin"
