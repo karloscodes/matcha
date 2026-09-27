@@ -268,7 +268,7 @@ func cmdUpdate() {
 	name := requireAppName("update")
 	m := matchaFromConfig(name)
 
-	if err := m.Update(); err != nil {
+	if err := m.UpdateApp(); err != nil {
 		fatal(err)
 	}
 }
@@ -283,7 +283,7 @@ func cmdUpdateAll() {
 
 	for _, name := range matcha.ListAppsSorted(apps) {
 		m := matchaFromConfig(name)
-		if err := m.Update(); err != nil {
+		if err := m.UpdateApp(); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: failed to update %s: %v\n", name, err)
 		}
 	}

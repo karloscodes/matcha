@@ -293,6 +293,12 @@ func (m *Matcha) Update() error {
 	return nil
 }
 
+// UpdateApp pulls the latest image and redeploys only this app.
+// Unlike Update, it does not self-update and does not touch other apps.
+func (m *Matcha) UpdateApp() error {
+	return m.updateSingle()
+}
+
 // updateSingle pulls images and deploys a single app.
 func (m *Matcha) updateSingle() error {
 	printHeader("Updating " + m.config.Name)

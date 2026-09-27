@@ -221,13 +221,27 @@ func TestMultiAppInVM(t *testing.T) {
 		t.Errorf("API container not running. Docker ps: %s", out)
 	}
 
-	// Step 9: Verify proxy data directory
+	// Step 9: Update one app — only that app gets a new container.
+	// First deploys run as "{name}-next"; an update swaps back to "{name}".
+	config.Args = []string{"update", "web"}
+	runner = testrunner.NewTestRunner(config)
+	if err := runner.Run(); err != nil {
+		t.Fatalf("Update web failed: %v\nStdout: %s\nStderr: %s",
+			err, runner.Stdout(), runner.Stderr())
+	}
+
+	out, _ = runner.RunCommand("docker ps --format '{{.Names}}' | sort | tr '\\n' ' '", true)
+	if strings.TrimSpace(out) != "api-next matcha-proxy web" {
+		t.Errorf("update web should redeploy only web. Docker ps: %q", out)
+	}
+
+	// Step 10: Verify proxy data directory
 	out, err = runner.RunCommand("ls /var/matcha/proxy/ 2>&1", true)
 	if err != nil {
 		t.Errorf("Proxy data dir missing: %s", out)
 	}
 
-	// Step 10: Remove one app
+	// Step 11: Remove one app
 	config.Args = []string{"remove", "api"}
 	runner = testrunner.NewTestRunner(config)
 	if err := runner.Run(); err != nil {
