@@ -63,19 +63,28 @@ func (m *Matcha) createNetwork() error {
 	return err
 }
 
+// pullRetryDelay is the base wait between pull attempts. Tests set it to 0.
+var pullRetryDelay = 2 * time.Second
+
 // pullImages pulls the app and proxy images.
 func (m *Matcha) pullImages() error {
-	images := []string{m.config.AppImage, m.config.ProxyImage}
-
-	for _, image := range images {
-		for i := 0; i < maxRetries; i++ {
-			if _, err := m.runDocker("pull", image); err == nil {
-				break
-			} else if i == maxRetries-1 {
-				return fmt.Errorf("failed to pull %s after %d retries", image, maxRetries)
-			}
-			time.Sleep(time.Duration(i+1) * 2 * time.Second)
+	for _, image := range []string{m.config.AppImage, m.config.ProxyImage} {
+		if err := m.pullImage(image); err != nil {
+			return err
 		}
+	}
+	return nil
+}
+
+// pullImage pulls one image, retrying with a growing wait.
+func (m *Matcha) pullImage(image string) error {
+	for i := 0; i < maxRetries; i++ {
+		if _, err := m.runDocker("pull", image); err == nil {
+			return nil
+		} else if i == maxRetries-1 {
+			return fmt.Errorf("failed to pull %s after %d retries: %w", image, maxRetries, err)
+		}
+		time.Sleep(time.Duration(i+1) * pullRetryDelay)
 	}
 	return nil
 }

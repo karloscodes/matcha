@@ -16,6 +16,12 @@ func (m *Matcha) deploy() error {
 		}
 	}
 
+	// Deploy the image config.yml names, not whatever copy this host happens to have.
+	// A failed pull is not fatal: the image may exist only on this host.
+	if err := m.pullImage(m.config.AppImage); err != nil {
+		printWarn("Could not pull %s, deploying the local copy: %v", m.config.AppImage, err)
+	}
+
 	// Pre-deploy backup
 	if m.config.Backups {
 		if path, err := m.createBackup(); err == nil {
