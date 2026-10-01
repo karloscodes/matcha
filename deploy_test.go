@@ -80,6 +80,22 @@ func TestDeploy(t *testing.T) {
 		}
 	})
 
+	t.Run("does not pull when the caller already has the image", func(t *testing.T) {
+		log := fakeDocker(t, false)
+		m := newDeployable(t)
+		m.config.SkipPull = true
+
+		err := m.deploy()
+
+		if err != nil {
+			t.Fatalf("deploy: %v", err)
+		}
+		got := calls(t, log)
+		if indexOf(got, "pull") >= 0 || indexOf(got, "run -d --name aja") < 0 {
+			t.Errorf("want a run and no pull, got calls:\n%s", strings.Join(got, "\n"))
+		}
+	})
+
 	t.Run("deploys the local image when the pull fails", func(t *testing.T) {
 		log := fakeDocker(t, true)
 		m := newDeployable(t)

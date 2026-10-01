@@ -22,6 +22,7 @@ type Config struct {
 	// Feature flags
 	CronUpdates bool // daily 3 AM auto-update cron job
 	Backups     bool // SQLite backup with retention policy
+	SkipPull    bool // the caller put the image on this host: a deploy does not pull it
 
 	// Custom configuration
 	Volumes        []string // Container paths to mount (e.g., /app/storage)
