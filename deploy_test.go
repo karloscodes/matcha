@@ -96,6 +96,22 @@ func TestDeploy(t *testing.T) {
 		}
 	})
 
+	t.Run("caps the log of the container, so it cannot fill the disk", func(t *testing.T) {
+		log := fakeDocker(t, false)
+		m := newDeployable(t)
+
+		err := m.deploy()
+
+		if err != nil {
+			t.Fatalf("deploy: %v", err)
+		}
+		got := calls(t, log)
+		run := indexOf(got, "run -d --name aja")
+		if run < 0 || !strings.Contains(got[run], "--log-opt max-size=10m --log-opt max-file=3") {
+			t.Errorf("want a log limit on the run, got calls:\n%s", strings.Join(got, "\n"))
+		}
+	})
+
 	t.Run("deploys the local image when the pull fails", func(t *testing.T) {
 		log := fakeDocker(t, true)
 		m := newDeployable(t)

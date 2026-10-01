@@ -66,6 +66,10 @@ func (m *Matcha) createNetwork() error {
 // pullRetryDelay is the base wait between pull attempts. Tests set it to 0.
 var pullRetryDelay = 2 * time.Second
 
+// logLimit caps the log of a container at 3 files of 10 MB. Without a limit,
+// Docker keeps every line, and the logs of a busy app fill the disk.
+var logLimit = []string{"--log-opt", "max-size=10m", "--log-opt", "max-file=3"}
+
 // pullImages pulls the app and proxy images.
 func (m *Matcha) pullImages() error {
 	for _, image := range []string{m.config.AppImage, m.config.ProxyImage} {
@@ -172,8 +176,9 @@ func (m *Matcha) deployApp(name string) error {
 	args = append(args,
 		"--memory=512m",
 		"--restart", "unless-stopped",
-		m.config.AppImage,
 	)
+	args = append(args, logLimit...)
+	args = append(args, m.config.AppImage)
 
 	_, err := m.runDocker(args...)
 	return err
@@ -202,8 +207,9 @@ func (m *Matcha) deployProxy() error {
 		"-v", proxyDataDir + ":/home/kamal-proxy/.config/kamal-proxy",
 		"--memory=128m",
 		"--restart", "unless-stopped",
-		m.config.ProxyImage,
 	}
+	args = append(args, logLimit...)
+	args = append(args, m.config.ProxyImage)
 
 	_, err := m.runDocker(args...)
 	return err
