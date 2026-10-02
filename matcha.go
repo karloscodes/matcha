@@ -23,7 +23,6 @@ type Config struct {
 	CronUpdates bool // daily 3 AM auto-update cron job
 	Backups     bool // SQLite backup with retention policy
 	SkipPull    bool // the caller put the image on this host: a deploy does not pull it
-	PlainHTTP   bool // another proxy in front does HTTPS: the app gets no certificate and no redirect
 
 	// Custom configuration
 	Volumes        []string // Container paths to mount (e.g., /app/storage)

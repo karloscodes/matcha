@@ -15,9 +15,8 @@ func (m *Matcha) proxyDeployArgs(domain string, targetContainer string) []string
 
 	if domain == "localhost" {
 		// Bare localhost: skip --host (catches all requests) and --tls
-	} else if isLocalhost(domain) || m.config.PlainHTTP {
-		// Localhost subdomains (e.g., app.localhost), or a proxy in front that
-		// does HTTPS: set --host for routing, skip --tls
+	} else if isLocalhost(domain) {
+		// Localhost subdomains (e.g., app.localhost): set --host for routing, skip --tls
 		args = append(args, "--host", domain)
 	} else {
 		args = append(args, "--host", domain, "--tls")
