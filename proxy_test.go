@@ -69,3 +69,26 @@ func TestProxyDeployArgsLocalhost(t *testing.T) {
 		t.Error("should include --forward-headers for localhost")
 	}
 }
+
+func TestProxyDeployArgsPlainHTTP(t *testing.T) {
+	m := New(Config{
+		Name:      "testapp",
+		AppImage:  "test:latest",
+		PlainHTTP: true,
+	})
+
+	args := m.proxyDeployArgs("app.example.com", "testapp")
+
+	host := false
+	for i, arg := range args {
+		if arg == "--tls" {
+			t.Error("should not include --tls when another proxy does HTTPS")
+		}
+		if arg == "--host" && i+1 < len(args) && args[i+1] == "app.example.com" {
+			host = true
+		}
+	}
+	if !host {
+		t.Errorf("missing --host app.example.com in %v", args)
+	}
+}
