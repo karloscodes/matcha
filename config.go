@@ -141,6 +141,21 @@ func (m *Matcha) loadConfig() error {
 		}
 	}
 
+	m.useRecord(app)
+	return nil
+}
+
+// record returns the record of the app: the one the caller gave to DeployApp,
+// or the one in the YAML config.
+func (m *Matcha) record() (AppConfig, error) {
+	if m.app != nil {
+		return *m.app, nil
+	}
+	return LoadAppFrom(m.configPath(), m.config.Name)
+}
+
+// useRecord makes this instance deploy what a record says.
+func (m *Matcha) useRecord(app AppConfig) {
 	if app.Image != "" {
 		m.config.AppImage = app.Image
 	}
@@ -157,7 +172,6 @@ func (m *Matcha) loadConfig() error {
 	if app.HealthTimeout > 0 {
 		m.config.HealthTimeout = app.HealthTimeout
 	}
-	return nil
 }
 
 // tryAutoMigrate attempts to migrate from old layouts to YAML config.
@@ -190,7 +204,7 @@ func (m *Matcha) tryAutoMigrate() bool {
 
 // readPrivateKey reads the private key from YAML config.
 func (m *Matcha) readPrivateKey() string {
-	app, err := LoadAppFrom(m.configPath(), m.config.Name)
+	app, err := m.record()
 	if err != nil {
 		return ""
 	}

@@ -125,4 +125,35 @@ func TestDeploy(t *testing.T) {
 			t.Error("want the container started from the local image")
 		}
 	})
+
+	t.Run("deploys the record of the caller and reads no config file", func(t *testing.T) {
+		log := fakeDocker(t, false)
+		config := filepath.Join(t.TempDir(), "config.yml")
+		m := New(Config{Name: "aja", ConfigPath: config, DataDirBase: t.TempDir(), SkipPull: true})
+
+		err := m.DeployApp(AppConfig{
+			Image: "ghcr.io/example/aja:1.2.0", Domain: "aja.example.com", Port: 3000, HealthPath: "/health",
+			Volumes: []string{"/data"}, Env: map[string]string{"PRIVATE_KEY": "the-key"},
+		})
+
+		if err != nil {
+			t.Fatalf("deploy: %v", err)
+		}
+		got := calls(t, log)
+		run := indexOf(got, "run -d --name aja")
+		if run < 0 {
+			t.Fatalf("want a run, got calls:\n%s", strings.Join(got, "\n"))
+		}
+		for _, want := range []string{"-e PRIVATE_KEY=the-key", "-e AJA_PRIVATE_KEY=the-key", "-e AJA_DOMAIN=aja.example.com", "-e AJA_APP_PORT=3000", "/data", " ghcr.io/example/aja:1.2.0"} {
+			if !strings.Contains(got[run], want) {
+				t.Errorf("the run has no %q:\n%s", want, got[run])
+			}
+		}
+		if proxy := indexOf(got, "exec matcha-proxy kamal-proxy deploy aja"); proxy < 0 || !strings.Contains(got[proxy], "aja.example.com") || !strings.Contains(got[proxy], "/health") {
+			t.Errorf("want the proxy to get the domain and the health path of the record, got calls:\n%s", strings.Join(got, "\n"))
+		}
+		if _, err := os.Stat(config); !os.IsNotExist(err) {
+			t.Errorf("the deploy made a config file (%v)", err)
+		}
+	})
 }

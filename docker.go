@@ -150,8 +150,8 @@ func (m *Matcha) deployApp(name string) error {
 		args = append(args, "-v", v)
 	}
 
-	// Load env vars from YAML config
-	app, _ := LoadAppFrom(m.configPath(), m.config.Name)
+	// Env vars from the record of the app
+	app, _ := m.record()
 	prefix := m.EnvPrefix()
 	for k, v := range app.Env {
 		args = append(args, "-e", k+"="+v)

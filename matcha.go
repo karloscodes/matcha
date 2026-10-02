@@ -43,6 +43,8 @@ type Matcha struct {
 	// Temporary state during installation
 	domain    string
 	dnsStatus *dnsStatus
+	// The record a caller gave to DeployApp. With it, no config file is read.
+	app *AppConfig
 }
 
 // New creates a new Matcha instance with the given configuration.
@@ -379,7 +381,7 @@ func (m *Matcha) GetDomain() (string, error) {
 	if m.domain != "" {
 		return m.domain, nil
 	}
-	app, err := LoadAppFrom(m.configPath(), m.config.Name)
+	app, err := m.record()
 	if err != nil {
 		return "", err
 	}
@@ -436,5 +438,14 @@ func (m *Matcha) Deploy() error {
 	if err := m.loadConfig(); err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
+	return m.deploy()
+}
+
+// DeployApp deploys the app from the record the caller gives. It reads no
+// config file and writes none, so a caller can keep its apps where it wants:
+// in a database, for example.
+func (m *Matcha) DeployApp(app AppConfig) error {
+	m.app = &app
+	m.useRecord(app)
 	return m.deploy()
 }
