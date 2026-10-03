@@ -2,6 +2,7 @@ package matcha
 
 import (
 	"bytes"
+	"cmp"
 	"fmt"
 	"os"
 	"os/exec"
@@ -174,7 +175,7 @@ func (m *Matcha) deployApp(name string) error {
 	}
 
 	args = append(args,
-		"--memory=512m",
+		"--memory="+cmp.Or(app.Memory, "512m"),
 		"--restart", "unless-stopped",
 	)
 	args = append(args, logLimit...)

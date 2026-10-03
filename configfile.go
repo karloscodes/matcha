@@ -16,13 +16,16 @@ type MatchaConfig struct {
 
 // AppConfig holds the configuration for a single deployed application.
 type AppConfig struct {
-	Image      string            `yaml:"image"`
-	Domain     string            `yaml:"domain"`
-	Port       int               `yaml:"port,omitempty"`
-	HealthPath string            `yaml:"health_path,omitempty"`
-	Volumes    []string          `yaml:"volumes,omitempty"`
-	Env            map[string]string `yaml:"env,omitempty"`
-	HealthTimeout  int               `yaml:"health_timeout,omitempty"`
+	Image         string            `yaml:"image"`
+	Domain        string            `yaml:"domain"`
+	Port          int               `yaml:"port,omitempty"`
+	HealthPath    string            `yaml:"health_path,omitempty"`
+	Volumes       []string          `yaml:"volumes,omitempty"`
+	Env           map[string]string `yaml:"env,omitempty"`
+	HealthTimeout int               `yaml:"health_timeout,omitempty"`
+	// Memory is the most memory the container may use, in the form of
+	// docker run --memory: "512m", "1g". Empty is 512m.
+	Memory string `yaml:"memory,omitempty"`
 }
 
 // ConfigPath returns the path to the matcha config file.

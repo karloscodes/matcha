@@ -46,9 +46,11 @@ func (m *Matcha) deploy() error {
 	}
 
 	if err := m.deployToProxy(m.domain, newContainer); err != nil {
-		// New container failed health check — clean it up, old is still running
+		// New container failed health check — clean it up, old is still running.
+		// Keep what it left first: once it is removed, its logs are gone.
+		failed := m.unhealthy(newContainer, err)
 		m.stopAndRemove(newContainer)
-		return fmt.Errorf("failed to register with proxy: %w", err)
+		return failed
 	}
 
 	// Traffic has switched — safe to remove old container
