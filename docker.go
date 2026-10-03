@@ -174,8 +174,13 @@ func (m *Matcha) deployApp(name string) error {
 		args = append(args, "-e", "MATCHA_MANAGER_VERSION="+m.config.ManagerVersion)
 	}
 
+	// A stop sends SIGTERM, then SIGKILL after 30 seconds, like the job roles
+	// of Kamal: an app that runs its jobs in its own process gets the time to
+	// finish one. An app that stops sooner loses nothing: docker waits only
+	// until it exits.
 	args = append(args,
 		"--memory="+cmp.Or(app.Memory, "512m"),
+		"--stop-timeout", "30",
 		"--restart", "unless-stopped",
 	)
 	args = append(args, logLimit...)
