@@ -178,7 +178,11 @@ func (m *Matcha) deployApp(name string) error {
 	// of Kamal: an app that runs its jobs in its own process gets the time to
 	// finish one. An app that stops sooner loses nothing: docker waits only
 	// until it exits.
+	// No raw sockets: an app on the shared network must not spoof the
+	// addresses of its neighbours and read their traffic. Docker answers
+	// ping without them.
 	args = append(args,
+		"--cap-drop", "NET_RAW",
 		"--memory="+cmp.Or(app.Memory, "512m"),
 		"--stop-timeout", "30",
 		"--restart", "unless-stopped",
