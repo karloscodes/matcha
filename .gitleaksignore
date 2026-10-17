@@ -1,0 +1,3 @@
+# A made-up key in a test fixture (config_test.go, Feb 2026). Not a secret.
+# Each line is a gitleaks fingerprint.
+1e9c29ed67b72cd53b1f8f38a4ab1236d045b259:config_test.go:generic-api-key:77
