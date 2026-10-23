@@ -1,6 +1,6 @@
 # Matcha
 
-> **Matcha is no longer developed. Use [Chasen](https://chasenhq.com) instead.** Chasen does what matcha does, with the same proxy and the same zero-downtime deploys, and adds hourly backups to S3, a live replica of SQLite, and deploys from your computer through SSH. It runs on a server that matcha set up: install it with `chasen add server root@<your server>`, then take over each app on the server with `chasen-server adopt <app>`. Nothing restarts, and `chasen-server adopt <app> --undo` gives the app back. The matcha CLI gets no new features. The Go library stays: it is the engine inside Chasen.
+> **Matcha is no longer developed. Use [Chasen](https://chasenhq.com) instead.** Chasen does what matcha does, with the same proxy and the same zero-downtime deploys, and adds hourly backups to S3, a live replica of SQLite, and deploys from your computer through SSH. It runs on a server that matcha set up: install it with `chasen add server root@<your server>`, then take over each app on the server with `chasen-server adopt <app>`. Nothing restarts, and `chasen-server adopt <app> --undo` gives the app back. This repository is archived: the CLI and the Go library get no new versions. Since v0.12.8, Chasen carries its own copy of the engine.
 
 Deploy Docker apps to your own Linux server. You get automatic HTTPS, zero-downtime updates, and nightly auto-updates. There is no control plane and no YAML to write by hand.
 
